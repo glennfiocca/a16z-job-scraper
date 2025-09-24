@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}{{ job.title }} - {{ job.company }} - A16Z Jobs{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-0">
+    <!-- Breadcrumb -->
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="/" class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600">
+                    <i class="fas fa-home mr-2"></i>
+                    Jobs
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <span class="text-sm font-medium text-gray-500">{{ job.title }}</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Job Header -->
+    <div class="bg-white shadow rounded-lg mb-6">
+        <div class="px-4 py-5 sm:p-6">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <h1 class="text-3xl font-bold text-gray-900 mb-4">{{ job.title }}</h1>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        {% if job.company %}
+                        <div class="flex items-center">
+                            <i class="fas fa-building text-gray-400 mr-2"></i>
+                            <div>
+                                <div class="text-sm text-gray-500">Company</div>
+                                <div class="font-medium text-gray-900">{{ job.company }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if job.location %}
+                        <div class="flex items-center">
+                            <i class="fas fa-map-marker-alt text-gray-400 mr-2"></i>
+                            <div>
+                                <div class="text-sm text-gray-500">Location</div>
+                                <div class="font-medium text-gray-900">{{ job.location }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if job.employment_type %}
+                        <div class="flex items-center">
+                            <i class="fas fa-clock text-gray-400 mr-2"></i>
+                            <div>
+                                <div class="text-sm text-gray-500">Type</div>
+                                <div class="font-medium text-gray-900">{{ job.employment_type }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="flex items-center">
+                            <i class="fas fa-calendar text-gray-400 mr-2"></i>
+                            <div>
+                                <div class="text-sm text-gray-500">Posted</div>
+                                <div class="font-medium text-gray-900">
+                                    {% if job.posted_date %}
+                                        {{ job.posted_date }}
+                                    {% else %}
+                                        <span class="relative-time" data-timestamp="{{ job.scraped_at.isoformat() }}">
+                                            {{ job.scraped_at.strftime('%b %d, %Y') }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="ml-6 flex flex-col space-y-3">
+                    {% if job.url %}
+                    <a href="{{ job.url }}" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <i class="fas fa-external-link-alt mr-2"></i>
+                        Apply Now
+                    </a>
+                    {% endif %}
+                    
+                    <button onclick="shareJob()" 
+                            class="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <i class="fas fa-share mr-2"></i>
+                        Share
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Job Description -->
+    {% if job.description %}
+    <div class="bg-white shadow rounded-lg mb-6">
+        <div class="px-4 py-5 sm:p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Job Description</h2>
+            <div class="prose max-w-none">
+                <div class="whitespace-pre-wrap text-gray-700 leading-relaxed">{{ job.description }}</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Requirements -->
+    {% if job.requirements %}
+    <div class="bg-white shadow rounded-lg mb-6">
+        <div class="px-4 py-5 sm:p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Requirements</h2>
+            <div class="prose max-w-none">
+                <div class="whitespace-pre-wrap text-gray-700 leading-relaxed">{{ job.requirements }}</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Job Metadata -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Job Information</h2>
+            <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Job ID</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ job.id }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Scraped On</dt>
+                    <dd class="mt-1 text-sm text-gray-900">
+                        <span class="relative-time" data-timestamp="{{ job.scraped_at.isoformat() }}">
+                            {{ job.scraped_at.strftime('%B %d, %Y at %I:%M %p') }}
+                        </span>
+                    </dd>
+                </div>
+                {% if job.url %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Original URL</dt>
+                    <dd class="mt-1 text-sm">
+                        <a href="{{ job.url }}" target="_blank" rel="noopener noreferrer" 
+                           class="text-blue-600 hover:text-blue-800 break-all">
+                            {{ job.url }}
+                            <i class="fas fa-external-link-alt ml-1 text-xs"></i>
+                        </a>
+                    </dd>
+                </div>
+                {% endif %}
+            </dl>
+        </div>
+    </div>
+
+    <!-- Back to Jobs -->
+    <div class="mt-6">
+        <a href="/" class="inline-flex items-center text-blue-600 hover:text-blue-800">
+            <i class="fas fa-arrow-left mr-2"></i>
+            Back to all jobs
+        </a>
+    </div>
+</div>
+
+<script>
+function shareJob() {
+    if (navigator.share) {
+        navigator.share({
+            title: '{{ job.title }} at {{ job.company }}',
+            text: 'Check out this job opportunity: {{ job.title }} at {{ job.company }}',
+            url: window.location.href
+        });
+    } else {
+        // Fallback: copy to clipboard
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            alert('Job URL copied to clipboard!');
+        });
+    }
+}
+</script>
+{% endblock %}

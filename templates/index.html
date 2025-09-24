@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}Job Listings - A16Z Jobs Dashboard{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-0">
+    <!-- Header with Stats -->
+    <div class="mb-8">
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">A16Z Portfolio Jobs</h1>
+                        <p class="mt-1 text-sm text-gray-600">
+                            Discover opportunities across {{ stats.companies }} companies in the a16z portfolio
+                        </p>
+                    </div>
+                    <div class="flex items-center space-x-6 text-sm text-gray-600">
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-blue-600">{{ stats.total_jobs }}</div>
+                            <div>Total Jobs</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-green-600">{{ stats.companies }}</div>
+                            <div>Companies</div>
+                        </div>
+                        {% if stats.latest_update %}
+                        <div class="text-center">
+                            <div class="text-sm font-medium text-gray-900">Last Update</div>
+                            <div class="relative-time text-gray-600" data-timestamp="{{ stats.latest_update.isoformat() }}">
+                                {{ stats.latest_update.strftime('%b %d, %Y') }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="mb-6">
+        <div class="bg-white shadow rounded-lg p-4">
+            <form method="GET" class="flex flex-col sm:flex-row gap-4">
+                <div class="flex-1">
+                    <label for="search" class="sr-only">Search jobs</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-search text-gray-400"></i>
+                        </div>
+                        <input type="text" name="search" id="search" 
+                               value="{{ current_search }}" 
+                               placeholder="Search by title, company, or description..." 
+                               class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                <div class="sm:w-64">
+                    <label for="company" class="sr-only">Filter by company</label>
+                    <select name="company" id="company" 
+                            class="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md">
+                        <option value="">All Companies</option>
+                        {% for company in companies %}
+                        <option value="{{ company }}" {% if company == current_company %}selected{% endif %}>
+                            {{ company }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" 
+                        class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    <i class="fas fa-search mr-2"></i>Search
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Job Listings -->
+    <div class="space-y-4">
+        {% for job in jobs.items %}
+        <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow duration-200">
+            <div class="px-4 py-5 sm:p-6">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1 min-w-0">
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">
+                            <a href="{{ url_for('job_detail', job_id=job.id) }}" class="hover:text-blue-600">
+                                {{ job.title }}
+                            </a>
+                        </h3>
+                        <div class="flex items-center space-x-4 text-sm text-gray-600 mb-3">
+                            {% if job.company %}
+                            <div class="flex items-center">
+                                <i class="fas fa-building mr-1"></i>
+                                <span class="font-medium">{{ job.company }}</span>
+                            </div>
+                            {% endif %}
+                            {% if job.location %}
+                            <div class="flex items-center">
+                                <i class="fas fa-map-marker-alt mr-1"></i>
+                                <span>{{ job.location }}</span>
+                            </div>
+                            {% endif %}
+                            {% if job.employment_type %}
+                            <div class="flex items-center">
+                                <i class="fas fa-clock mr-1"></i>
+                                <span>{{ job.employment_type }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% if job.description %}
+                        <p class="text-gray-700 text-sm line-clamp-3">
+                            {{ job.description[:200] }}...
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="ml-4 flex-shrink-0 flex flex-col items-end space-y-2">
+                        <div class="relative-time text-xs text-gray-500" data-timestamp="{{ job.scraped_at.isoformat() }}">
+                            {{ job.scraped_at.strftime('%b %d') }}
+                        </div>
+                        <div class="flex space-x-2">
+                            <a href="{{ url_for('job_detail', job_id=job.id) }}" 
+                               class="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-medium hover:bg-blue-100">
+                                View Details
+                            </a>
+                            {% if job.url %}
+                            <a href="{{ job.url }}" target="_blank" rel="noopener noreferrer"
+                               class="bg-green-50 text-green-700 px-3 py-1 rounded-full text-xs font-medium hover:bg-green-100">
+                                Apply <i class="fas fa-external-link-alt ml-1"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if jobs.pages > 1 %}
+    <div class="mt-8 flex items-center justify-between">
+        <div class="flex-1 flex justify-between sm:hidden">
+            {% if jobs.has_prev %}
+            <a href="{{ url_for('index', page=jobs.prev_num, company=current_company, search=current_search) }}" 
+               class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                Previous
+            </a>
+            {% endif %}
+            {% if jobs.has_next %}
+            <a href="{{ url_for('index', page=jobs.next_num, company=current_company, search=current_search) }}" 
+               class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                Next
+            </a>
+            {% endif %}
+        </div>
+        <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+                <p class="text-sm text-gray-700">
+                    Showing <span class="font-medium">{{ jobs.per_page * (jobs.page - 1) + 1 }}</span> to 
+                    <span class="font-medium">{{ jobs.per_page * jobs.page if jobs.page < jobs.pages else jobs.total }}</span> of 
+                    <span class="font-medium">{{ jobs.total }}</span> results
+                </p>
+            </div>
+            <div>
+                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    {% if jobs.has_prev %}
+                    <a href="{{ url_for('index', page=jobs.prev_num, company=current_company, search=current_search) }}" 
+                       class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                    {% endif %}
+                    
+                    {% for page_num in jobs.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != jobs.page %}
+                            <a href="{{ url_for('index', page=page_num, company=current_company, search=current_search) }}" 
+                               class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                {{ page_num }}
+                            </a>
+                            {% else %}
+                            <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-blue-50 text-sm font-medium text-blue-600">
+                                {{ page_num }}
+                            </span>
+                            {% endif %}
+                        {% else %}
+                        <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                            ...
+                        </span>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if jobs.has_next %}
+                    <a href="{{ url_for('index', page=jobs.next_num, company=current_company, search=current_search) }}" 
+                       class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                    {% endif %}
+                </nav>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Empty State -->
+    {% if jobs.total == 0 %}
+    <div class="text-center py-12">
+        <i class="fas fa-search text-gray-400 text-6xl mb-4"></i>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No jobs found</h3>
+        <p class="text-gray-600 mb-4">Try adjusting your search criteria or filters.</p>
+        <a href="{{ url_for('index') }}" class="text-blue-600 hover:text-blue-800">
+            <i class="fas fa-arrow-left mr-1"></i> View all jobs
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Statistics - A16Z Jobs Dashboard{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-0">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Jobs Statistics</h1>
+        <p class="mt-2 text-gray-600">Overview of job postings across the a16z portfolio</p>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-briefcase text-2xl text-blue-600"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Total Jobs</dt>
+                            <dd class="text-3xl font-semibold text-gray-900">{{ stats.total_jobs }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-building text-2xl text-green-600"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Companies</dt>
+                            <dd class="text-3xl font-semibold text-gray-900">{{ stats.companies }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-clock text-2xl text-purple-600"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Recent Jobs (24h)</dt>
+                            <dd class="text-3xl font-semibold text-gray-900">{{ stats.recent_jobs|length }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Company Breakdown -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Companies Chart -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Jobs by Company</h3>
+                <div class="space-y-3">
+                    {% for company, count in stats.company_breakdown %}
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center flex-1 min-w-0">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-gray-900 truncate">{{ company }}</p>
+                            </div>
+                        </div>
+                        <div class="ml-4 flex items-center">
+                            <span class="text-sm text-gray-500 mr-2">{{ count }} jobs</span>
+                            <div class="w-16 bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-600 h-2 rounded-full" 
+                                     style="width: {{ (count / stats.company_breakdown[0][1] * 100)|round }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                {% if stats.company_breakdown|length > 10 %}
+                <div class="mt-4 text-center">
+                    <a href="/" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        View all companies <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Recent Jobs -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Recently Added Jobs</h3>
+                <div class="space-y-4">
+                    {% for job in stats.recent_jobs %}
+                    <div class="border-l-4 border-blue-500 pl-4">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1 min-w-0">
+                                <h4 class="text-sm font-medium text-gray-900">
+                                    <a href="{{ url_for('job_detail', job_id=job.id) }}" class="hover:text-blue-600">
+                                        {{ job.title }}
+                                    </a>
+                                </h4>
+                                <p class="text-sm text-gray-600 mt-1">
+                                    {% if job.company %}{{ job.company }}{% endif %}
+                                    {% if job.company and job.location %} • {% endif %}
+                                    {% if job.location %}{{ job.location }}{% endif %}
+                                </p>
+                            </div>
+                            <div class="ml-4 flex-shrink-0">
+                                <span class="relative-time text-xs text-gray-500" data-timestamp="{{ job.scraped_at.isoformat() }}">
+                                    {{ job.scraped_at.strftime('%m/%d') }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                {% if stats.recent_jobs|length == 10 %}
+                <div class="mt-4 text-center">
+                    <a href="/" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        View all jobs <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Source Info -->
+    <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle text-blue-600"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800">Data Source</h3>
+                <div class="mt-2 text-sm text-blue-700">
+                    <p>Job data is automatically scraped from the official a16z portfolio companies job board at 
+                       <a href="https://jobs.a16z.com/jobs" target="_blank" rel="noopener noreferrer" 
+                          class="underline hover:text-blue-900">jobs.a16z.com</a>.
+                       Data is updated regularly to ensure the most current opportunities are displayed.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

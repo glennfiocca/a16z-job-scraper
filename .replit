@@ -1,5 +1,5 @@
 entrypoint = "main.py"
-modules = ["python-3.11"]
+modules = ["python-3.11", "postgresql-16"]
 
 [nix]
 channel = "stable-24_05"
@@ -17,3 +17,27 @@ deploymentTarget = "cloudrun"
 
 [agent]
 expertMode = true
+integrations = ["python_database:1.0.0"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "A16Z Jobs Scraper"
+
+[[workflows.workflow]]
+name = "A16Z Jobs Scraper"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python main.py"
+
+[workflows.workflow.metadata]
+outputType = "console"

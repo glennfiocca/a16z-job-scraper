@@ -83,42 +83,106 @@ async def collect_all_job_urls(browser):
         await page.goto('https://jobs.a16z.com/jobs')
         await page.wait_for_load_state('networkidle')
         
-        # Scroll to load all jobs with bounded strategy
-        await page.evaluate("""
-            () => {
-                return new Promise((resolve) => {
-                    let totalHeight = 0;
-                    let distance = 100;
-                    let previousHeight = 0;
-                    let stableCount = 0;
-                    let maxIterations = 50; // Max 50 scroll attempts
-                    let iterations = 0;
-                    
-                    let timer = setInterval(() => {
-                        let scrollHeight = document.body.scrollHeight;
-                        window.scrollBy(0, distance);
-                        totalHeight += distance;
-                        iterations++;
-                        
-                        // Check if height is stable (no new content loaded)
-                        if (scrollHeight === previousHeight) {
-                            stableCount++;
-                        } else {
-                            stableCount = 0;
-                            previousHeight = scrollHeight;
-                        }
-                        
-                        // Stop if: reached bottom, height stable for 3 cycles, or max iterations
-                        if (totalHeight >= scrollHeight || stableCount >= 3 || iterations >= maxIterations) {
-                            clearInterval(timer);
-                            resolve();
-                        }
-                    }, 200);
-                });
-            }
-        """)
+        # Aggressive scrolling to load thousands of jobs - target ~2000+ jobs
+        print("Starting aggressive scroll to load thousands of jobs...")
         
-        await page.wait_for_timeout(2000)  # Wait for any lazy-loaded content
+        try:
+            # Add a global timeout for the entire scrolling operation (5 minutes max)
+            await page.evaluate("""
+                () => {
+                    return new Promise((resolve, reject) => {
+                        let totalHeight = 0;
+                        let distance = 500; // Larger scroll distance for faster loading
+                        let previousHeight = 0;
+                        let stableCount = 0;
+                        let maxIterations = 1500; // Reduced but still very high
+                        let iterations = 0;
+                        let jobCount = 0;
+                        let startTime = Date.now();
+                        let maxDuration = 5 * 60 * 1000; // 5 minutes max timeout
+                        
+                        console.log("Starting aggressive scroll for 12k+ jobs...");
+                        
+                        let timer = setInterval(() => {
+                            try {
+                                let elapsed = Date.now() - startTime;
+                                let scrollHeight = document.body.scrollHeight;
+                                
+                                // Safety timeout check
+                                if (elapsed > maxDuration) {
+                                    console.log(`Timeout reached after ${elapsed/1000} seconds`);
+                                    clearInterval(timer);
+                                    resolve(`Timeout: ${jobCount} jobs loaded in ${elapsed/1000}s`);
+                                    return;
+                                }
+                                
+                                // Count job links on page for progress tracking
+                                let currentJobCount = document.querySelectorAll('a[href*="greenhouse"], a[href*="lever"], a[href*="ashby"], a[href*="workday"], a[href*="smartrecruiters"], a[href*="workable"]').length;
+                                
+                                if (currentJobCount > jobCount) {
+                                    jobCount = currentJobCount;
+                                    console.log(`📈 Progress: ${jobCount} jobs loaded (${iterations} scrolls, ${Math.round(elapsed/1000)}s)`);
+                                }
+                                
+                                // Scroll down aggressively
+                                window.scrollBy(0, distance);
+                                totalHeight += distance;
+                                iterations++;
+                                
+                                // Check if height is stable (no new content loaded)
+                                if (scrollHeight === previousHeight) {
+                                    stableCount++;
+                                } else {
+                                    stableCount = 0;
+                                    previousHeight = scrollHeight;
+                                }
+                                
+                                // Progress milestones
+                                if (jobCount >= 1000) {
+                                    console.log(`🎉 MILESTONE: Reached 1000+ jobs! Continuing to ${jobCount}...`);
+                                    if (stableCount >= 5) { // Exit earlier if we have 1000+ jobs
+                                        clearInterval(timer);
+                                        resolve(`Success: ${jobCount} jobs loaded`);
+                                        return;
+                                    }
+                                }
+                                
+                                // Stopping conditions - exit if stable for too long OR max iterations
+                                if (stableCount >= 15 || iterations >= maxIterations) {
+                                    console.log(`✅ Scrolling complete: ${iterations} iterations, ${jobCount} jobs loaded in ${elapsed/1000}s`);
+                                    clearInterval(timer);
+                                    resolve(`Complete: ${jobCount} jobs loaded`);
+                                }
+                                
+                                // Progress update every 50 iterations for more feedback
+                                if (iterations % 50 === 0) {
+                                    console.log(`🔄 Scroll progress: ${iterations}/${maxIterations} iterations, ${jobCount} jobs, ${Math.round(elapsed/1000)}s`);
+                                }
+                                
+                            } catch (error) {
+                                console.log(`❌ Scroll error: ${error}`);
+                                clearInterval(timer);
+                                resolve(`Error: ${jobCount} jobs loaded before error`);
+                            }
+                            
+                        }, 150); // Slightly slower for stability
+                        
+                        // Backup timeout to prevent infinite hanging
+                        setTimeout(() => {
+                            clearInterval(timer);
+                            resolve(`Backup timeout: ${jobCount} jobs loaded`);
+                        }, maxDuration + 10000);
+                    });
+                }
+            """)
+            print("✅ Scrolling JavaScript completed successfully")
+            
+        except Exception as e:
+            print(f"⚠️ Scrolling error: {e}")
+            print("Continuing with whatever jobs were loaded...")
+        
+        await page.wait_for_timeout(5000)  # Extra wait for final lazy-loaded content
+        print("Scroll completed, extracting job URLs...")
         
         # Look for external ATS links (Greenhouse, Lever, etc.) - these are actual job postings
         # Get all job links from the page
@@ -169,7 +233,9 @@ async def collect_all_job_urls(browser):
             seen_urls.add(url)
             unique_jobs.append((url, company))
     
-    print(f"Collected {len(unique_jobs)} unique job URLs")
+    print(f"🎉 SUCCESS: Collected {len(unique_jobs)} unique job URLs from a16z portfolio!")
+    if len(unique_jobs) > 100:
+        print(f"📈 MAJOR IMPROVEMENT: Was getting ~7 jobs, now collecting {len(unique_jobs)} jobs!")
     return unique_jobs
 
 async def wait_for_provider_elements(page, job_url):

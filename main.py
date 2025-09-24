@@ -83,103 +83,73 @@ async def collect_all_job_urls(browser):
         await page.goto('https://jobs.a16z.com/jobs')
         await page.wait_for_load_state('networkidle')
         
-        # Aggressive scrolling to load thousands of jobs - target ~2000+ jobs
-        print("Starting aggressive scroll to load thousands of jobs...")
+        # Diagnostic approach - let's see what's actually on the page first
+        print("🔍 DIAGNOSTIC MODE: Analyzing page structure...")
         
-        try:
-            # Add a global timeout for the entire scrolling operation (5 minutes max)
-            await page.evaluate("""
+        # First, let's see what we can find without any scrolling
+        initial_links = await page.query_selector_all('a')
+        print(f"Found {len(initial_links)} total links on initial page load")
+        
+        # Check for job-related links specifically
+        job_links = await page.query_selector_all('a[href*="greenhouse"], a[href*="lever"], a[href*="ashby"], a[href*="workday"], a[href*="smartrecruiters"], a[href*="workable"]')
+        print(f"Found {len(job_links)} job-related links before scrolling")
+        
+        # Get current page height
+        page_info = await page.evaluate("""
+            () => {
+                return {
+                    scrollHeight: document.body.scrollHeight,
+                    clientHeight: document.body.clientHeight,
+                    windowHeight: window.innerHeight,
+                    currentScroll: window.pageYOffset
+                };
+            }
+        """)
+        print(f"📏 Page dimensions: {page_info}")
+        
+        # Simple incremental scrolling with immediate feedback
+        print("🔄 Starting simple incremental scrolling...")
+        
+        for scroll_batch in range(10):  # Try 10 batches first
+            print(f"📜 Scroll batch {scroll_batch + 1}/10...")
+            
+            # Scroll down in smaller, controlled chunks
+            await page.evaluate("window.scrollBy(0, 1000)")
+            await page.wait_for_timeout(1000)  # Wait 1 second between scrolls
+            
+            # Check for new jobs after each scroll
+            current_job_links = await page.query_selector_all('a[href*="greenhouse"], a[href*="lever"], a[href*="ashby"], a[href*="workday"], a[href*="smartrecruiters"], a[href*="workable"]')
+            print(f"  └─ Found {len(current_job_links)} jobs after scroll batch {scroll_batch + 1}")
+            
+            # Get updated page info
+            new_page_info = await page.evaluate("""
                 () => {
-                    return new Promise((resolve, reject) => {
-                        let totalHeight = 0;
-                        let distance = 500; // Larger scroll distance for faster loading
-                        let previousHeight = 0;
-                        let stableCount = 0;
-                        let maxIterations = 1500; // Reduced but still very high
-                        let iterations = 0;
-                        let jobCount = 0;
-                        let startTime = Date.now();
-                        let maxDuration = 5 * 60 * 1000; // 5 minutes max timeout
-                        
-                        console.log("Starting aggressive scroll for 12k+ jobs...");
-                        
-                        let timer = setInterval(() => {
-                            try {
-                                let elapsed = Date.now() - startTime;
-                                let scrollHeight = document.body.scrollHeight;
-                                
-                                // Safety timeout check
-                                if (elapsed > maxDuration) {
-                                    console.log(`Timeout reached after ${elapsed/1000} seconds`);
-                                    clearInterval(timer);
-                                    resolve(`Timeout: ${jobCount} jobs loaded in ${elapsed/1000}s`);
-                                    return;
-                                }
-                                
-                                // Count job links on page for progress tracking
-                                let currentJobCount = document.querySelectorAll('a[href*="greenhouse"], a[href*="lever"], a[href*="ashby"], a[href*="workday"], a[href*="smartrecruiters"], a[href*="workable"]').length;
-                                
-                                if (currentJobCount > jobCount) {
-                                    jobCount = currentJobCount;
-                                    console.log(`📈 Progress: ${jobCount} jobs loaded (${iterations} scrolls, ${Math.round(elapsed/1000)}s)`);
-                                }
-                                
-                                // Scroll down aggressively
-                                window.scrollBy(0, distance);
-                                totalHeight += distance;
-                                iterations++;
-                                
-                                // Check if height is stable (no new content loaded)
-                                if (scrollHeight === previousHeight) {
-                                    stableCount++;
-                                } else {
-                                    stableCount = 0;
-                                    previousHeight = scrollHeight;
-                                }
-                                
-                                // Progress milestones
-                                if (jobCount >= 1000) {
-                                    console.log(`🎉 MILESTONE: Reached 1000+ jobs! Continuing to ${jobCount}...`);
-                                    if (stableCount >= 5) { // Exit earlier if we have 1000+ jobs
-                                        clearInterval(timer);
-                                        resolve(`Success: ${jobCount} jobs loaded`);
-                                        return;
-                                    }
-                                }
-                                
-                                // Stopping conditions - exit if stable for too long OR max iterations
-                                if (stableCount >= 15 || iterations >= maxIterations) {
-                                    console.log(`✅ Scrolling complete: ${iterations} iterations, ${jobCount} jobs loaded in ${elapsed/1000}s`);
-                                    clearInterval(timer);
-                                    resolve(`Complete: ${jobCount} jobs loaded`);
-                                }
-                                
-                                // Progress update every 50 iterations for more feedback
-                                if (iterations % 50 === 0) {
-                                    console.log(`🔄 Scroll progress: ${iterations}/${maxIterations} iterations, ${jobCount} jobs, ${Math.round(elapsed/1000)}s`);
-                                }
-                                
-                            } catch (error) {
-                                console.log(`❌ Scroll error: ${error}`);
-                                clearInterval(timer);
-                                resolve(`Error: ${jobCount} jobs loaded before error`);
-                            }
-                            
-                        }, 150); // Slightly slower for stability
-                        
-                        // Backup timeout to prevent infinite hanging
-                        setTimeout(() => {
-                            clearInterval(timer);
-                            resolve(`Backup timeout: ${jobCount} jobs loaded`);
-                        }, maxDuration + 10000);
-                    });
+                    return {
+                        scrollHeight: document.body.scrollHeight,
+                        currentScroll: window.pageYOffset
+                    };
                 }
             """)
-            print("✅ Scrolling JavaScript completed successfully")
             
-        except Exception as e:
-            print(f"⚠️ Scrolling error: {e}")
-            print("Continuing with whatever jobs were loaded...")
+            # Check if we're making progress
+            if new_page_info['currentScroll'] >= new_page_info['scrollHeight'] * 0.9:
+                print("📍 Reached near bottom of page")
+                break
+                
+            # If we found a good number of jobs, do more aggressive scrolling
+            if len(current_job_links) > 100:
+                print(f"🚀 Found {len(current_job_links)} jobs - switching to aggressive mode!")
+                # Do more aggressive scrolling
+                for fast_scroll in range(50):
+                    await page.evaluate("window.scrollBy(0, 2000)")
+                    await page.wait_for_timeout(200)
+                    
+                    if fast_scroll % 10 == 0:
+                        fast_job_count = len(await page.query_selector_all('a[href*="greenhouse"], a[href*="lever"], a[href*="ashby"], a[href*="workday"], a[href*="smartrecruiters"], a[href*="workable"]'))
+                        print(f"  └─ Fast scroll {fast_scroll}: {fast_job_count} jobs")
+                break
+        
+        print("✅ Scrolling diagnostic completed")
         
         await page.wait_for_timeout(5000)  # Extra wait for final lazy-loaded content
         print("Scroll completed, extracting job URLs...")

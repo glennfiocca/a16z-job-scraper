@@ -128,19 +128,11 @@ async def collect_all_job_urls(browser):
                 url = await link.get_attribute('href')
                 # Accept all major ATS providers
                 if url and any(provider in url.lower() for provider in ['greenhouse', 'lever', 'ashby', 'workday', 'smartrecruiters', 'workable']):
-                    # Try to extract company name from nearby elements
-                    company_element = await link.query_selector('xpath=ancestor::*[contains(@class, "job") or contains(@class, "card")]//*[contains(@class, "company") or contains(@class, "employer")]')
-                    if not company_element:
-                        # Look for company name in nearby siblings
-                        company_element = await link.query_selector('xpath=..//*[contains(@class, "company") or contains(@class, "employer") or contains(@class, "title")]')
-                    
+                    # Don't extract company from listing page (it's unreliable)
+                    # Let the individual page extraction handle it via URL parsing
                     company_name = "Unknown Company"
-                    if company_element:
-                        company_text = await company_element.inner_text()
-                        # Clean up company name
-                        company_name = company_text.strip()[:100] if company_text else "Unknown Company"
                     
-                    job_urls.append(url)  # Only store URL for deduplication
+                    job_urls.append((url, company_name))  # Store both URL and company
                     print(f"Found external job: {url} at {company_name}")
             except Exception as e:
                 print(f"Error extracting external link: {e}")
@@ -157,7 +149,7 @@ async def collect_all_job_urls(browser):
                     if not url.startswith('http'):
                         url = 'https://jobs.a16z.com' + url
                     
-                    job_urls.append(url)
+                    job_urls.append((url, "Unknown Company"))
                     print(f"Found internal job page: {url}")
             except Exception as e:
                 print(f"Error extracting internal link: {e}")
@@ -168,10 +160,16 @@ async def collect_all_job_urls(browser):
     finally:
         await page.close()
     
-    # Remove duplicates by URL only
-    unique_urls = list(set(job_urls))
-    print(f"Collected {len(unique_urls)} unique job URLs")
-    return [(url, "Unknown Company") for url in unique_urls]
+    # Remove duplicates by URL while preserving company names
+    seen_urls = set()
+    unique_jobs = []
+    for url, company in job_urls:
+        if url not in seen_urls:
+            seen_urls.add(url)
+            unique_jobs.append((url, company))
+    
+    print(f"Collected {len(unique_jobs)} unique job URLs")
+    return unique_jobs
 
 async def wait_for_provider_elements(page, job_url):
     """Wait for provider-specific elements to load"""
@@ -202,6 +200,10 @@ async def extract_job_details_advanced(page, job_url, company_name):
     }
     
     try:
+        # For known ATS providers, immediately override with URL-derived company
+        if any(p in job_url.lower() for p in ["greenhouse", "lever", "ashby", "workday", "smartrecruiters", "workable"]):
+            job_data['company'] = extract_company_from_url(job_url)
+        
         # Determine ATS provider and use appropriate selectors
         if 'greenhouse' in job_url.lower():
             job_data = await extract_greenhouse_job(page, job_data)
@@ -229,11 +231,14 @@ async def extract_greenhouse_job(page, job_data):
         if title:
             job_data['title'] = title
         
-        # Company (override if found on page)
+        # Company (override if found on page, or extract from URL)
         company_selectors = ['.company-name', '.header-company-name', '[data-mapped="company"]']
         company = await get_text_by_selectors(page, company_selectors)
         if company:
             job_data['company'] = company
+        elif not job_data.get('company') or job_data.get('company') == "Unknown Company":
+            # Try to extract company from URL as fallback
+            job_data['company'] = extract_company_from_url(job_data['url'])
         
         # Location
         location_selectors = ['.location', '[data-mapped="location"]', '.job-location']
@@ -273,6 +278,10 @@ async def extract_lever_job(page, job_data):
         if title:
             job_data['title'] = title
         
+        # Company (extract from URL if not found on page)
+        if not job_data.get('company') or job_data.get('company') == "Unknown Company":
+            job_data['company'] = extract_company_from_url(job_data['url'])
+        
         # Location
         location_selectors = ['.posting-categories .location', '.location']
         location = await get_text_by_selectors(page, location_selectors)
@@ -305,6 +314,10 @@ async def extract_ashby_job(page, job_data):
         if title:
             job_data['title'] = title
         
+        # Company (extract from URL if not found on page)
+        if not job_data.get('company') or job_data.get('company') == "Unknown Company":
+            job_data['company'] = extract_company_from_url(job_data['url'])
+        
         # Location and other details are often in a details section
         location_selectors = ['.location-text', '.job-details-location']
         location = await get_text_by_selectors(page, location_selectors)
@@ -330,6 +343,10 @@ async def extract_workday_job(page, job_data):
         title = await get_text_by_selectors(page, title_selectors)
         if title:
             job_data['title'] = title
+        
+        # Company (extract from URL if not found on page)
+        if not job_data.get('company') or job_data.get('company') == "Unknown Company":
+            job_data['company'] = extract_company_from_url(job_data['url'])
         
         # Location
         location_selectors = ['[data-automation-id="jobPostingLocation"]', '.location']
@@ -386,6 +403,51 @@ async def get_text_by_selectors(page, selectors):
         except Exception:
             continue
     return None
+
+def extract_company_from_greenhouse_url(url):
+    """Extract company name from Greenhouse URL"""
+    try:
+        if 'greenhouse' in url.lower():
+            # Format: https://job-boards.greenhouse.io/COMPANY/jobs/...
+            # or https://boards.greenhouse.io/COMPANY/jobs/...
+            parts = url.split('/')
+            for i, part in enumerate(parts):
+                if 'greenhouse' in part and i + 1 < len(parts):
+                    company_slug = parts[i + 1]
+                    # Clean up company slug to readable name
+                    company_name = company_slug.replace('-', ' ').replace('_', ' ')
+                    return company_name.title()
+    except Exception:
+        pass
+    return "Unknown Company"
+
+def extract_company_from_url(url):
+    """Extract company name from various ATS URLs"""
+    try:
+        if 'greenhouse' in url.lower():
+            return extract_company_from_greenhouse_url(url)
+        elif 'lever' in url.lower():
+            # Format: https://jobs.lever.co/COMPANY/job-id
+            parts = url.split('/')
+            for i, part in enumerate(parts):
+                if 'lever.co' in part and i + 1 < len(parts):
+                    company_slug = parts[i + 1]
+                    return company_slug.replace('-', ' ').replace('_', ' ').title()
+        elif 'ashby' in url.lower():
+            # Format: https://jobs.ashbyhq.com/COMPANY/job-id
+            parts = url.split('/')
+            for i, part in enumerate(parts):
+                if 'ashbyhq.com' in part and i + 1 < len(parts):
+                    company_slug = parts[i + 1]
+                    return company_slug.replace('-', ' ').replace('_', ' ').title()
+        elif 'workday' in url.lower():
+            # Format: https://COMPANY.wd12.myworkdayjobs.com/...
+            if '.wd' in url and '.myworkdayjobs.com' in url:
+                domain_part = url.split('//')[1].split('.')[0]
+                return domain_part.replace('-', ' ').replace('_', ' ').title()
+    except Exception:
+        pass
+    return "Unknown Company"
 
 def save_job_to_db(job_data):
     """Save job data to the database"""

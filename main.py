@@ -90,9 +90,13 @@ async def collect_all_job_urls(browser):
         initial_links = await page.query_selector_all('a')
         print(f"Found {len(initial_links)} total links on initial page load")
         
-        # Check for job-related links specifically
-        job_links = await page.query_selector_all('a[href*="greenhouse"], a[href*="lever"], a[href*="ashby"], a[href*="workday"], a[href*="smartrecruiters"], a[href*="workable"]')
-        print(f"Found {len(job_links)} job-related links before scrolling")
+        # Count job-related links initially (using browser execution)
+        initial_job_count = await page.evaluate("""
+            () => {
+                return document.querySelectorAll('a[href*="greenhouse"], a[href*="lever"], a[href*="ashby"], a[href*="workday"], a[href*="smartrecruiters"], a[href*="workable"]').length;
+            }
+        """)
+        print(f"Found {initial_job_count} job-related links before scrolling")
         
         # Get current page height
         page_info = await page.evaluate("""
@@ -107,88 +111,151 @@ async def collect_all_job_urls(browser):
         """)
         print(f"📏 Page dimensions: {page_info}")
         
-        # Simple incremental scrolling with immediate feedback
-        print("🔄 Starting simple incremental scrolling...")
+        # Robust infinite scrolling until convergence - target thousands of jobs
+        print("🚀 Starting robust infinite scrolling until convergence...")
         
-        for scroll_batch in range(10):  # Try 10 batches first
-            print(f"📜 Scroll batch {scroll_batch + 1}/10...")
+        previous_job_count = initial_job_count
+        stable_count = 0
+        scroll_iteration = 0
+        max_stable_iterations = 10  # Stop if no growth for 10 iterations
+        max_total_iterations = 500  # Safety limit
+        
+        print(f"🎯 Starting with {previous_job_count} jobs, scrolling until no new jobs found...")
+        
+        while stable_count < max_stable_iterations and scroll_iteration < max_total_iterations:
+            scroll_iteration += 1
             
-            # Scroll down in smaller, controlled chunks
-            await page.evaluate("window.scrollBy(0, 1000)")
-            await page.wait_for_timeout(1000)  # Wait 1 second between scrolls
+            # Scroll down aggressively (2000px chunks for speed)
+            await page.evaluate("window.scrollBy(0, 2000)")
+            await page.wait_for_timeout(300)  # Short wait for content to load
             
-            # Check for new jobs after each scroll
-            current_job_links = await page.query_selector_all('a[href*="greenhouse"], a[href*="lever"], a[href*="ashby"], a[href*="workday"], a[href*="smartrecruiters"], a[href*="workable"]')
-            print(f"  └─ Found {len(current_job_links)} jobs after scroll batch {scroll_batch + 1}")
+            # Check for new jobs after each scroll (using browser execution to avoid ElementHandle issues)
+            current_job_count = await page.evaluate("""
+                () => {
+                    return document.querySelectorAll('a[href*="greenhouse"], a[href*="lever"], a[href*="ashby"], a[href*="workday"], a[href*="smartrecruiters"], a[href*="workable"]').length;
+                }
+            """)
             
-            # Get updated page info
-            new_page_info = await page.evaluate("""
+            # Check if we found new jobs
+            if current_job_count > previous_job_count:
+                jobs_added = current_job_count - previous_job_count
+                print(f"📈 Scroll {scroll_iteration}: Found {jobs_added} new jobs (total: {current_job_count})")
+                previous_job_count = current_job_count
+                stable_count = 0  # Reset stability counter
+            else:
+                stable_count += 1
+                if stable_count % 3 == 0:  # Log every 3 stable iterations
+                    print(f"⏳ Scroll {scroll_iteration}: No new jobs ({stable_count}/{max_stable_iterations} stable)")
+            
+            # Progress milestones
+            if current_job_count >= 100 and current_job_count < 200:
+                print(f"🎉 MILESTONE: Reached {current_job_count} jobs! Continuing to find more...")
+            elif current_job_count >= 500:
+                print(f"🎉 MASSIVE MILESTONE: Found {current_job_count} jobs! Still searching...")
+            elif current_job_count >= 1000:
+                print(f"🎯 TARGET REACHED: {current_job_count}+ jobs discovered! Continuing until stable...")
+            
+            # Check if we've reached the actual bottom of the page
+            page_info = await page.evaluate("""
                 () => {
                     return {
                         scrollHeight: document.body.scrollHeight,
-                        currentScroll: window.pageYOffset
+                        currentScroll: window.pageYOffset,
+                        windowHeight: window.innerHeight
                     };
                 }
             """)
             
-            # Check if we're making progress
-            if new_page_info['currentScroll'] >= new_page_info['scrollHeight'] * 0.9:
-                print("📍 Reached near bottom of page")
-                break
-                
-            # If we found a good number of jobs, do more aggressive scrolling
-            if len(current_job_links) > 100:
-                print(f"🚀 Found {len(current_job_links)} jobs - switching to aggressive mode!")
-                # Do more aggressive scrolling
-                for fast_scroll in range(50):
-                    await page.evaluate("window.scrollBy(0, 2000)")
-                    await page.wait_for_timeout(200)
-                    
-                    if fast_scroll % 10 == 0:
-                        fast_job_count = len(await page.query_selector_all('a[href*="greenhouse"], a[href*="lever"], a[href*="ashby"], a[href*="workday"], a[href*="smartrecruiters"], a[href*="workable"]'))
-                        print(f"  └─ Fast scroll {fast_scroll}: {fast_job_count} jobs")
+            # If we're at the bottom and no new jobs, we're done
+            if (page_info['currentScroll'] + page_info['windowHeight'] >= page_info['scrollHeight'] - 100):
+                if stable_count >= 5:  # Be more lenient at bottom of page
+                    print(f"📍 Reached bottom of page with {current_job_count} jobs total")
+                    break
+            
+            # Early success exit if we've found a massive number and it's stable
+            if current_job_count >= 2000 and stable_count >= 5:
+                print(f"🎯 MASSIVE SUCCESS: Found {current_job_count} jobs! Stopping due to stability.")
                 break
         
-        print("✅ Scrolling diagnostic completed")
+        final_job_count = await page.evaluate("""
+            () => {
+                return document.querySelectorAll('a[href*="greenhouse"], a[href*="lever"], a[href*="ashby"], a[href*="workday"], a[href*="smartrecruiters"], a[href*="workable"]').length;
+            }
+        """)
+        print(f"✅ Infinite scrolling completed: {final_job_count} total jobs found in {scroll_iteration} scrolls")
+        
+        if final_job_count >= 1000:
+            print(f"🎉 SUCCESS: Reached target of 1000+ jobs! Found {final_job_count} jobs total.")
+        elif final_job_count >= 500:
+            print(f"🎯 GREAT PROGRESS: Found {final_job_count} jobs - halfway to 1000+ target!")
+        else:
+            print(f"📊 BASELINE: Found {final_job_count} jobs - need to investigate further for thousands.")
         
         await page.wait_for_timeout(5000)  # Extra wait for final lazy-loaded content
         print("Scroll completed, extracting job URLs...")
         
-        # Look for external ATS links (Greenhouse, Lever, etc.) - these are actual job postings
-        # Get all job links from the page
-        external_links = await page.query_selector_all('a[href*="greenhouse"], a[href*="lever"], a[href*="ashby"], a[href*="workday"], a[href*="smartrecruiters"], a[href*="workable"], a[href*="/jobs/"]')
+        # Extract href attributes using browser execution to avoid ElementHandle issues
+        print("🔗 Extracting job URLs from discovered links...")
         
-        for link in external_links:
-            try:
-                url = await link.get_attribute('href')
-                # Accept all major ATS providers
-                if url and any(provider in url.lower() for provider in ['greenhouse', 'lever', 'ashby', 'workday', 'smartrecruiters', 'workable']):
-                    # Don't extract company from listing page (it's unreliable)
-                    # Let the individual page extraction handle it via URL parsing
-                    company_name = "Unknown Company"
-                    
-                    job_urls.append((url, company_name))  # Store both URL and company
-                    print(f"Found external job: {url} at {company_name}")
-            except Exception as e:
-                print(f"Error extracting external link: {e}")
+        # Get external ATS links (Greenhouse, Lever, etc.)
+        external_hrefs = await page.eval_on_selector_all(
+            'a[href*="greenhouse"], a[href*="lever"], a[href*="ashby"], a[href*="workday"], a[href*="smartrecruiters"], a[href*="workable"], a[href*="/jobs/"]',
+            'els => els.map(a => a.getAttribute("href"))'
+        )
+        
+        print(f"📊 Found {len(external_hrefs)} external job links to process...")
+        
+        for url in external_hrefs:
+            if not url:
                 continue
+                
+            # Normalize relative URLs
+            if url.startswith('/'):
+                url = 'https://jobs.a16z.com' + url
+                
+            # Accept all major ATS providers
+            if any(provider in url.lower() for provider in ['greenhouse', 'lever', 'ashby', 'workday', 'smartrecruiters', 'workable']):
+                company_name = "Unknown Company"
+                job_urls.append((url, company_name))
+                print(f"✅ Found external job: {url}")
         
-        # Also look for a16z internal job pages (these might be company overview pages with individual jobs)
-        internal_links = await page.query_selector_all('a[href*="/jobs/"][href*="a16z.com"]')
+        # Also look for a16z internal job pages 
+        internal_hrefs = await page.eval_on_selector_all(
+            'a[href*="/jobs/"]',
+            'els => els.map(a => a.getAttribute("href"))'
+        )
         
-        for link in internal_links:
-            try:
-                url = await link.get_attribute('href')
-                if url and '/jobs/' in url and url not in job_urls:
-                    # Make sure it's a full URL
-                    if not url.startswith('http'):
-                        url = 'https://jobs.a16z.com' + url
-                    
+        print(f"📊 Found {len(internal_hrefs)} internal job links to check...")
+        
+        for url in internal_hrefs:
+            if not url:
+                continue
+                
+            # Normalize relative URLs
+            if url.startswith('/'):
+                url = 'https://jobs.a16z.com' + url
+                
+            # Check if it's an internal a16z job page and not already in our list
+            if 'a16z.com' in url and '/jobs/' in url:
+                # Check if URL already exists (simple check)
+                url_already_exists = any(existing_url == url for existing_url, _ in job_urls)
+                if not url_already_exists:
                     job_urls.append((url, "Unknown Company"))
-                    print(f"Found internal job page: {url}")
-            except Exception as e:
-                print(f"Error extracting internal link: {e}")
-                continue
+                    print(f"✅ Found internal job page: {url}")
+        
+        # Log some quality metrics
+        provider_counts = {}
+        for url, _ in job_urls:
+            for provider in ['greenhouse', 'lever', 'ashby', 'workday', 'smartrecruiters', 'workable']:
+                if provider in url.lower():
+                    provider_counts[provider] = provider_counts.get(provider, 0) + 1
+                    break
+        
+        print(f"📈 Provider breakdown: {provider_counts}")
+        if len(job_urls) > 0:
+            print(f"🎯 Sample URLs: {[url for url, _ in job_urls[:5]]}")
+        else:
+            print("⚠️ No job URLs collected - checking extraction logic...")
                 
     except Exception as e:
         print(f"Error collecting job URLs: {e}")

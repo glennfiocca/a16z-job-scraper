@@ -121,7 +121,8 @@ async def collect_all_job_urls(browser):
         await page.wait_for_timeout(2000)  # Wait for any lazy-loaded content
         
         # Look for external ATS links (Greenhouse, Lever, etc.) - these are actual job postings
-        external_links = await page.query_selector_all('a[href*="greenhouse"], a[href*="lever"], a[href*="ashby"], a[href*="workday"], a[href*="smartrecruiters"], a[href*="workable"]')
+        # Get all job links from the page
+        external_links = await page.query_selector_all('a[href*="greenhouse"], a[href*="lever"], a[href*="ashby"], a[href*="workday"], a[href*="smartrecruiters"], a[href*="workable"], a[href*="/jobs/"]')
         
         for link in external_links:
             try:
@@ -263,17 +264,45 @@ async def extract_greenhouse_job(page, job_data):
         except:
             pass
         
-        # Extract detailed sections from the job content
+        # Extract detailed content with comprehensive selectors
+        content_selectors = [
+            '#content',
+            '.section-wrapper',
+            '.job-description',
+            '[data-testid="jobDescription"]',
+            '[data-qa="job-description"]',
+            '.gh-content',
+            '.posting-description',
+            '.markdown-content',
+            'main',
+            'article',
+            '[role="main"]'
+        ]
+        
+        full_content = ""
         try:
-            content_element = await page.query_selector('#content, .section-wrapper, .job-description')
-            if content_element:
-                full_content = await content_element.inner_text()
-                job_data['description'] = full_content[:10000]  # Increased limit
+            # Try multiple selectors to find content
+            for selector in content_selectors:
+                content_element = await page.query_selector(selector)
+                if content_element:
+                    text = await content_element.inner_text()
+                    if text and len(text.strip()) > 100:  # Only use substantial content
+                        full_content = text.strip()
+                        break
+            
+            if full_content:
+                job_data['description'] = full_content[:10000]
+                print(f"Greenhouse: Extracted {len(full_content)} characters of content")
                 
                 # Parse sections from content
                 sections = await parse_job_sections(full_content)
                 job_data.update(sections)
+                print(f"Greenhouse: Parsed sections: {list(sections.keys())}")
+            else:
+                print("Greenhouse: No substantial content found with any selector")
+                
         except Exception as e:
+            print(f"Greenhouse: Error extracting content: {e}")
             # Fallback to basic description
             desc_selectors = ['#content', '.section-wrapper', '.job-description']
             description = await get_text_by_selectors(page, desc_selectors)
@@ -342,17 +371,43 @@ async def extract_lever_job(page, job_data):
         except:
             pass
         
-        # Extract detailed content
+        # Extract detailed content with comprehensive selectors
+        content_selectors = [
+            '.posting-content',
+            '.section-wrapper',
+            '.posting-description',
+            '.job-description',
+            '[data-testid="jobDescription"]',
+            '.content',
+            'main',
+            'article',
+            '[role="main"]'
+        ]
+        
+        full_content = ""
         try:
-            content_element = await page.query_selector('.posting-content, .section-wrapper')
-            if content_element:
-                full_content = await content_element.inner_text()
+            # Try multiple selectors to find content
+            for selector in content_selectors:
+                content_element = await page.query_selector(selector)
+                if content_element:
+                    text = await content_element.inner_text()
+                    if text and len(text.strip()) > 100:  # Only use substantial content
+                        full_content = text.strip()
+                        break
+            
+            if full_content:
                 job_data['description'] = full_content[:10000]
+                print(f"Lever: Extracted {len(full_content)} characters of content")
                 
                 # Parse sections from content
                 sections = await parse_job_sections(full_content)
                 job_data.update(sections)
+                print(f"Lever: Parsed sections: {list(sections.keys())}")
+            else:
+                print("Lever: No substantial content found with any selector")
+                
         except Exception as e:
+            print(f"Lever: Error extracting content: {e}")
             # Fallback to basic description
             desc_selectors = ['.posting-content', '.section-wrapper']
             description = await get_text_by_selectors(page, desc_selectors)
@@ -397,17 +452,45 @@ async def extract_ashby_job(page, job_data):
         except:
             pass
         
-        # Extract detailed content
+        # Extract detailed content with comprehensive selectors
+        content_selectors = [
+            '.job-description',
+            '.markdown-content', 
+            '[data-testid="jobDescription"]',
+            '[data-qa="job-description"]',
+            '.content-intro',
+            '.job-content',
+            '.description',
+            '.posting-description',
+            'main',
+            'article',
+            '[role="main"]'
+        ]
+        
+        full_content = ""
         try:
-            content_element = await page.query_selector('.job-description, .markdown-content, main')
-            if content_element:
-                full_content = await content_element.inner_text()
+            # Try multiple selectors to find content
+            for selector in content_selectors:
+                content_element = await page.query_selector(selector)
+                if content_element:
+                    text = await content_element.inner_text()
+                    if text and len(text.strip()) > 100:  # Only use substantial content
+                        full_content = text.strip()
+                        break
+            
+            if full_content:
                 job_data['description'] = full_content[:10000]
+                print(f"Extracted {len(full_content)} characters of content")
                 
                 # Parse sections from content
                 sections = await parse_job_sections(full_content)
                 job_data.update(sections)
+                print(f"Parsed sections: {list(sections.keys())}")
+            else:
+                print("No substantial content found with any selector")
+                
         except Exception as e:
+            print(f"Error extracting content: {e}")
             # Fallback to basic description
             desc_selectors = ['.job-description', '.markdown-content']
             description = await get_text_by_selectors(page, desc_selectors)

@@ -60,6 +60,36 @@
                         </div>
                         {% endif %}
                         
+                        {% if job.salary_range %}
+                        <div class="flex items-center">
+                            <i class="fas fa-dollar-sign text-gray-400 mr-2"></i>
+                            <div>
+                                <div class="text-sm text-gray-500">Salary</div>
+                                <div class="font-medium text-gray-900">{{ job.salary_range }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if job.department %}
+                        <div class="flex items-center">
+                            <i class="fas fa-users text-gray-400 mr-2"></i>
+                            <div>
+                                <div class="text-sm text-gray-500">Department</div>
+                                <div class="font-medium text-gray-900">{{ job.department }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if job.remote_type %}
+                        <div class="flex items-center">
+                            <i class="fas fa-laptop text-gray-400 mr-2"></i>
+                            <div>
+                                <div class="text-sm text-gray-500">Work Style</div>
+                                <div class="font-medium text-gray-900">{{ job.remote_type }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
                         <div class="flex items-center">
                             <i class="fas fa-calendar text-gray-400 mr-2"></i>
                             <div>
@@ -113,9 +143,42 @@
     {% if job.requirements %}
     <div class="bg-white shadow rounded-lg mb-6">
         <div class="px-4 py-5 sm:p-6">
-            <h2 class="text-xl font-semibold text-gray-900 mb-4">Requirements</h2>
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">
+                <i class="fas fa-list-check mr-2 text-blue-600"></i>
+                Requirements
+            </h2>
             <div class="prose max-w-none">
                 <div class="whitespace-pre-wrap text-gray-700 leading-relaxed">{{ job.requirements }}</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Responsibilities -->
+    {% if job.responsibilities %}
+    <div class="bg-white shadow rounded-lg mb-6">
+        <div class="px-4 py-5 sm:p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">
+                <i class="fas fa-tasks mr-2 text-green-600"></i>
+                Responsibilities
+            </h2>
+            <div class="prose max-w-none">
+                <div class="whitespace-pre-wrap text-gray-700 leading-relaxed">{{ job.responsibilities }}</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Benefits -->
+    {% if job.benefits %}
+    <div class="bg-white shadow rounded-lg mb-6">
+        <div class="px-4 py-5 sm:p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">
+                <i class="fas fa-gift mr-2 text-purple-600"></i>
+                Benefits & Perks
+            </h2>
+            <div class="prose max-w-none">
+                <div class="whitespace-pre-wrap text-gray-700 leading-relaxed">{{ job.benefits }}</div>
             </div>
         </div>
     </div>
@@ -127,9 +190,27 @@
             <h2 class="text-xl font-semibold text-gray-900 mb-4">Job Information</h2>
             <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">Job ID</dt>
+                    <dt class="text-sm font-medium text-gray-500">Internal Job ID</dt>
                     <dd class="mt-1 text-sm text-gray-900">{{ job.id }}</dd>
                 </div>
+                {% if job.job_id %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">External Job ID</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ job.job_id }}</dd>
+                </div>
+                {% endif %}
+                {% if job.experience_level %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Experience Level</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ job.experience_level }}</dd>
+                </div>
+                {% endif %}
+                {% if job.application_deadline %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Application Deadline</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ job.application_deadline }}</dd>
+                </div>
+                {% endif %}
                 <div>
                     <dt class="text-sm font-medium text-gray-500">Scraped On</dt>
                     <dd class="mt-1 text-sm text-gray-900">

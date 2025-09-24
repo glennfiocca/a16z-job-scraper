@@ -223,7 +223,7 @@ async def extract_job_details_advanced(page, job_url, company_name):
     return job_data
 
 async def extract_greenhouse_job(page, job_data):
-    """Extract job details from Greenhouse ATS"""
+    """Extract comprehensive job details from Greenhouse ATS"""
     try:
         # Title
         title_selectors = ['h1.app-title', '.job-title', 'h1']
@@ -237,7 +237,6 @@ async def extract_greenhouse_job(page, job_data):
         if company:
             job_data['company'] = company
         elif not job_data.get('company') or job_data.get('company') == "Unknown Company":
-            # Try to extract company from URL as fallback
             job_data['company'] = extract_company_from_url(job_data['url'])
         
         # Location
@@ -252,17 +251,52 @@ async def extract_greenhouse_job(page, job_data):
         if emp_type:
             job_data['employment_type'] = emp_type
         
-        # Description
-        desc_selectors = ['#content', '.section-wrapper', '.job-description']
-        description = await get_text_by_selectors(page, desc_selectors)
-        if description:
-            job_data['description'] = description[:5000]  # Limit length
+        # Job ID
+        job_id = None
+        try:
+            url_parts = job_data['url'].split('/')
+            if 'jobs' in url_parts:
+                job_id_index = url_parts.index('jobs') + 1
+                if job_id_index < len(url_parts):
+                    job_id = url_parts[job_id_index].split('?')[0]
+            job_data['job_id'] = job_id
+        except:
+            pass
+        
+        # Extract detailed sections from the job content
+        try:
+            content_element = await page.query_selector('#content, .section-wrapper, .job-description')
+            if content_element:
+                full_content = await content_element.inner_text()
+                job_data['description'] = full_content[:10000]  # Increased limit
+                
+                # Parse sections from content
+                sections = await parse_job_sections(full_content)
+                job_data.update(sections)
+        except Exception as e:
+            # Fallback to basic description
+            desc_selectors = ['#content', '.section-wrapper', '.job-description']
+            description = await get_text_by_selectors(page, desc_selectors)
+            if description:
+                job_data['description'] = description[:10000]
+        
+        # Department/Team
+        dept_selectors = ['.department', '.team', '[data-mapped="department"]']
+        department = await get_text_by_selectors(page, dept_selectors)
+        if department:
+            job_data['department'] = department
         
         # Posted date
         date_selectors = ['.posted-date', '.publication-date']
         posted_date = await get_text_by_selectors(page, date_selectors)
         if posted_date:
             job_data['posted_date'] = posted_date
+        
+        # Salary/compensation (often in content)
+        salary_selectors = ['.salary', '.compensation', '.pay-range']
+        salary = await get_text_by_selectors(page, salary_selectors)
+        if salary:
+            job_data['salary_range'] = salary
             
     except Exception as e:
         print(f"Error parsing Greenhouse job: {e}")
@@ -270,7 +304,7 @@ async def extract_greenhouse_job(page, job_data):
     return job_data
 
 async def extract_lever_job(page, job_data):
-    """Extract job details from Lever ATS"""
+    """Extract comprehensive job details from Lever ATS"""
     try:
         # Title
         title_selectors = ['.posting-headline h2', '.job-title', 'h2']
@@ -294,11 +328,36 @@ async def extract_lever_job(page, job_data):
         if emp_type:
             job_data['employment_type'] = emp_type
         
-        # Description
-        desc_selectors = ['.posting-content', '.section-wrapper']
-        description = await get_text_by_selectors(page, desc_selectors)
-        if description:
-            job_data['description'] = description[:5000]
+        # Department/Team
+        dept_selectors = ['.posting-categories .team', '.posting-categories .department']
+        department = await get_text_by_selectors(page, dept_selectors)
+        if department:
+            job_data['department'] = department
+        
+        # Job ID from URL
+        try:
+            url_parts = job_data['url'].split('/')
+            if len(url_parts) > 2:
+                job_data['job_id'] = url_parts[-1].split('?')[0]
+        except:
+            pass
+        
+        # Extract detailed content
+        try:
+            content_element = await page.query_selector('.posting-content, .section-wrapper')
+            if content_element:
+                full_content = await content_element.inner_text()
+                job_data['description'] = full_content[:10000]
+                
+                # Parse sections from content
+                sections = await parse_job_sections(full_content)
+                job_data.update(sections)
+        except Exception as e:
+            # Fallback to basic description
+            desc_selectors = ['.posting-content', '.section-wrapper']
+            description = await get_text_by_selectors(page, desc_selectors)
+            if description:
+                job_data['description'] = description[:10000]
             
     except Exception as e:
         print(f"Error parsing Lever job: {e}")
@@ -306,7 +365,7 @@ async def extract_lever_job(page, job_data):
     return job_data
 
 async def extract_ashby_job(page, job_data):
-    """Extract job details from Ashby ATS"""
+    """Extract comprehensive job details from Ashby ATS"""
     try:
         # Title
         title_selectors = ['h1', '.job-title']
@@ -318,17 +377,42 @@ async def extract_ashby_job(page, job_data):
         if not job_data.get('company') or job_data.get('company') == "Unknown Company":
             job_data['company'] = extract_company_from_url(job_data['url'])
         
-        # Location and other details are often in a details section
-        location_selectors = ['.location-text', '.job-details-location']
+        # Location
+        location_selectors = ['.location-text', '.job-details-location', '[class*="location"]']
         location = await get_text_by_selectors(page, location_selectors)
         if location:
             job_data['location'] = location
         
-        # Description
-        desc_selectors = ['.job-description', '.markdown-content']
-        description = await get_text_by_selectors(page, desc_selectors)
-        if description:
-            job_data['description'] = description[:5000]
+        # Department
+        dept_selectors = ['.department', '[class*="department"]', '[class*="team"]']
+        department = await get_text_by_selectors(page, dept_selectors)
+        if department:
+            job_data['department'] = department
+        
+        # Job ID from URL
+        try:
+            url_parts = job_data['url'].split('/')
+            if len(url_parts) > 1:
+                job_data['job_id'] = url_parts[-1].split('?')[0]
+        except:
+            pass
+        
+        # Extract detailed content
+        try:
+            content_element = await page.query_selector('.job-description, .markdown-content, main')
+            if content_element:
+                full_content = await content_element.inner_text()
+                job_data['description'] = full_content[:10000]
+                
+                # Parse sections from content
+                sections = await parse_job_sections(full_content)
+                job_data.update(sections)
+        except Exception as e:
+            # Fallback to basic description
+            desc_selectors = ['.job-description', '.markdown-content']
+            description = await get_text_by_selectors(page, desc_selectors)
+            if description:
+                job_data['description'] = description[:10000]
             
     except Exception as e:
         print(f"Error parsing Ashby job: {e}")
@@ -336,7 +420,7 @@ async def extract_ashby_job(page, job_data):
     return job_data
 
 async def extract_workday_job(page, job_data):
-    """Extract job details from Workday ATS"""
+    """Extract comprehensive job details from Workday ATS"""
     try:
         # Title
         title_selectors = ['h1[data-automation-id="jobPostingHeader"]', 'h1', '.job-title']
@@ -354,11 +438,32 @@ async def extract_workday_job(page, job_data):
         if location:
             job_data['location'] = location
         
-        # Description
-        desc_selectors = ['[data-automation-id="jobPostingDescription"]', '.job-description']
-        description = await get_text_by_selectors(page, desc_selectors)
-        if description:
-            job_data['description'] = description[:5000]
+        # Job ID - Workday often has it in the URL or page
+        try:
+            # Try to extract from URL first
+            import re
+            match = re.search(r'job/[^/]+/([^/?]+)', job_data['url'])
+            if match:
+                job_data['job_id'] = match.group(1)
+        except:
+            pass
+        
+        # Extract detailed content
+        try:
+            content_element = await page.query_selector('[data-automation-id="jobPostingDescription"], .job-description, main')
+            if content_element:
+                full_content = await content_element.inner_text()
+                job_data['description'] = full_content[:10000]
+                
+                # Parse sections from content
+                sections = await parse_job_sections(full_content)
+                job_data.update(sections)
+        except Exception as e:
+            # Fallback to basic description
+            desc_selectors = ['[data-automation-id="jobPostingDescription"]', '.job-description']
+            description = await get_text_by_selectors(page, desc_selectors)
+            if description:
+                job_data['description'] = description[:10000]
             
     except Exception as e:
         print(f"Error parsing Workday job: {e}")
@@ -403,6 +508,86 @@ async def get_text_by_selectors(page, selectors):
         except Exception:
             continue
     return None
+
+async def parse_job_sections(content):
+    """Parse job content to extract structured sections"""
+    sections = {}
+    content_lower = content.lower()
+    
+    try:
+        # Split content into lines for easier parsing
+        lines = content.split('\n')
+        current_section = None
+        section_content = []
+        
+        # Common section headers to look for
+        section_headers = {
+            'requirements': ['requirements', 'qualifications', 'what you need', 'you have', 'required skills', 'minimum qualifications'],
+            'responsibilities': ['responsibilities', 'what you\'ll do', 'you will', 'duties', 'role description', 'job description'],
+            'benefits': ['benefits', 'what we offer', 'perks', 'compensation', 'package'],
+            'experience_level': ['experience', 'years', 'seniority', 'level'],
+            'remote_type': ['remote', 'hybrid', 'onsite', 'location', 'work from']
+        }
+        
+        for line in lines:
+            line_clean = line.strip()
+            if not line_clean:
+                continue
+                
+            # Check if this line is a section header
+            line_lower = line_clean.lower()
+            found_section = None
+            
+            for section_key, keywords in section_headers.items():
+                if any(keyword in line_lower for keyword in keywords):
+                    # Save previous section
+                    if current_section and section_content:
+                        sections[current_section] = '\n'.join(section_content)[:2000]
+                    
+                    current_section = section_key
+                    section_content = []
+                    found_section = True
+                    break
+            
+            if not found_section and current_section:
+                section_content.append(line_clean)
+        
+        # Save the last section
+        if current_section and section_content:
+            sections[current_section] = '\n'.join(section_content)[:2000]
+        
+        # Extract salary information
+        salary_patterns = [
+            r'\$[\d,]+\s*[-–]\s*\$[\d,]+',
+            r'\$[\d,]+(?:k|,000)',
+            r'[\d,]+\s*[-–]\s*[\d,]+\s*(?:k|,000)',
+            r'competitive\s+(?:salary|compensation)',
+            r'base\s+salary.*?\$[\d,]+'
+        ]
+        
+        import re
+        for pattern in salary_patterns:
+            match = re.search(pattern, content_lower)
+            if match:
+                sections['salary_range'] = match.group(0)
+                break
+        
+        # Extract remote work information
+        remote_keywords = {
+            'remote': ['100% remote', 'fully remote', 'remote-first', 'work from anywhere'],
+            'hybrid': ['hybrid', 'flexible', 'part remote'],
+            'onsite': ['on-site', 'in-office', 'office-based']
+        }
+        
+        for remote_type, keywords in remote_keywords.items():
+            if any(keyword in content_lower for keyword in keywords):
+                sections['remote_type'] = remote_type.title()
+                break
+        
+    except Exception as e:
+        print(f"Error parsing job sections: {e}")
+    
+    return sections
 
 def extract_company_from_greenhouse_url(url):
     """Extract company name from Greenhouse URL"""
@@ -450,7 +635,7 @@ def extract_company_from_url(url):
     return "Unknown Company"
 
 def save_job_to_db(job_data):
-    """Save job data to the database"""
+    """Save comprehensive job data to the database"""
     try:
         # Check if job already exists by URL to avoid duplicates
         existing_job = Job.query.filter_by(url=job_data.get('url')).first()
@@ -463,13 +648,22 @@ def save_job_to_db(job_data):
             print("Skipping job - no title found")
             return
         
-        # Create new job record - don't default company to 'a16z'
+        # Create new job record with all enhanced fields
         job = Job(
             title=job_data.get('title'),
-            company=job_data.get('company'),  # Let it be None if not found
+            company=job_data.get('company'),
             location=job_data.get('location'),
             employment_type=job_data.get('employment_type'),
             description=job_data.get('description'),
+            requirements=job_data.get('requirements'),
+            responsibilities=job_data.get('responsibilities'),
+            benefits=job_data.get('benefits'),
+            salary_range=job_data.get('salary_range'),
+            experience_level=job_data.get('experience_level'),
+            department=job_data.get('department'),
+            remote_type=job_data.get('remote_type'),
+            job_id=job_data.get('job_id'),
+            application_deadline=job_data.get('application_deadline'),
             url=job_data.get('url'),
             posted_date=job_data.get('posted_date'),
             scraped_at=datetime.utcnow()

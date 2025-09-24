@@ -32,7 +32,28 @@
                             </div>
                         </div>
                         {% endif %}
+                        <div class="text-center">
+                            <button id="refresh-jobs-btn" onclick="triggerScrape()" 
+                                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-sync-alt mr-2"></i>
+                                <span id="refresh-btn-text">Refresh Jobs</span>
+                            </button>
+                        </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Messages -->
+    <div id="status-message" class="mb-6 hidden">
+        <div class="rounded-md p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i id="status-icon" class="text-lg"></i>
+                </div>
+                <div class="ml-3">
+                    <p id="status-text" class="text-sm font-medium"></p>
                 </div>
             </div>
         </div>
@@ -212,4 +233,65 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+async function triggerScrape() {
+    const button = document.getElementById('refresh-jobs-btn');
+    const buttonText = document.getElementById('refresh-btn-text');
+    const statusMessage = document.getElementById('status-message');
+    const statusIcon = document.getElementById('status-icon');
+    const statusText = document.getElementById('status-text');
+    
+    // Disable button and show loading state
+    button.disabled = true;
+    buttonText.textContent = 'Scraping...';
+    button.querySelector('i').classList.add('fa-spin');
+    
+    try {
+        const response = await fetch('/trigger-scrape', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const result = await response.json();
+        
+        // Show status message
+        statusMessage.classList.remove('hidden');
+        statusMessage.querySelector('div').className = 'rounded-md p-4';
+        
+        if (result.status === 'success') {
+            statusMessage.querySelector('div').classList.add('bg-green-50');
+            statusIcon.className = 'fas fa-check-circle text-green-400';
+            statusText.className = 'text-sm font-medium text-green-800';
+            statusText.textContent = result.message;
+            
+            // Auto-hide success message after 5 seconds
+            setTimeout(() => {
+                statusMessage.classList.add('hidden');
+            }, 5000);
+            
+        } else {
+            statusMessage.querySelector('div').classList.add('bg-red-50');
+            statusIcon.className = 'fas fa-exclamation-circle text-red-400';
+            statusText.className = 'text-sm font-medium text-red-800';
+            statusText.textContent = result.message;
+        }
+        
+    } catch (error) {
+        // Show error message
+        statusMessage.classList.remove('hidden');
+        statusMessage.querySelector('div').className = 'rounded-md p-4 bg-red-50';
+        statusIcon.className = 'fas fa-exclamation-circle text-red-400';
+        statusText.className = 'text-sm font-medium text-red-800';
+        statusText.textContent = 'Failed to start job scraping. Please try again.';
+    }
+    
+    // Re-enable button
+    button.disabled = false;
+    buttonText.textContent = 'Refresh Jobs';
+    button.querySelector('i').classList.remove('fa-spin');
+}
+</script>
 {% endblock %}

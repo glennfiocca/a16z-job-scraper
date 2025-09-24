@@ -1,4 +1,6 @@
 import os
+import asyncio
+import threading
 from flask import Flask, render_template, request, jsonify
 from models import db, Job
 from datetime import datetime, timedelta
@@ -122,6 +124,33 @@ def stats():
         }
         
         return render_template('stats.html', stats=stats_data)
+
+@app.route('/trigger-scrape', methods=['POST'])
+def trigger_scrape():
+    """Manually trigger the job scraper"""
+    try:
+        # Import the scraper function
+        from main import scrape_a16z_jobs
+        
+        # Run the async scraper in a separate thread
+        def run_scraper():
+            asyncio.run(scrape_a16z_jobs())
+        
+        # Start scraping in background thread
+        thread = threading.Thread(target=run_scraper)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            'status': 'success', 
+            'message': 'Job scraping started! Check back in a few minutes for new jobs.'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error starting scraper: {str(e)}'
+        }), 500
 
 if __name__ == '__main__':
     with app.app_context():

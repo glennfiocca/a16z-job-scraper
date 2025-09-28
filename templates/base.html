@@ -3,10 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>{% block title %}A16Z Jobs Dashboard{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/custom.css') }}?v=2" rel="stylesheet">
 </head>
 <body class="bg-gray-50 min-h-screen">
     <!-- Navigation -->
@@ -56,7 +59,37 @@
                     el.textContent = moment(timestamp).fromNow();
                 }
             });
+            
+            // Check if scraping is already running on page load
+            checkScrapingStatus();
         });
+        
+        async function checkScrapingStatus() {
+            try {
+                const response = await fetch('/scrape-status');
+                const status = await response.json();
+                
+                if (status.is_running) {
+                    // Update button to show stop state
+                    const button = document.getElementById('scrape-btn');
+                    const buttonText = document.getElementById('scrape-btn-text');
+                    const buttonIcon = document.getElementById('scrape-btn-icon');
+                    
+                    if (button && buttonText && buttonIcon) {
+                        isScraping = true;
+                        buttonText.textContent = 'Stop Scraping';
+                        buttonIcon.className = 'fas fa-stop mr-2';
+                        button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                        button.classList.add('bg-red-600', 'hover:bg-red-700');
+                        
+                        // Start polling for updates
+                        startStatusPolling();
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking scraping status:', error);
+            }
+        }
     </script>
     {% block scripts %}{% endblock %}
 </body>

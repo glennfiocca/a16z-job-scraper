@@ -61,6 +61,41 @@
         </div>
     </div>
 
+    <!-- Job Source Breakdown -->
+    <div class="mb-8">
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Jobs by Source Platform</h3>
+                <p class="text-sm text-gray-600 mb-6">Breakdown of job postings by ATS (Applicant Tracking System) and job board platforms</p>
+                <div class="space-y-4">
+                    {% for source, count in stats.source_breakdown %}
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center flex-1 min-w-0">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-gray-900 truncate">{{ source }}</p>
+                            </div>
+                        </div>
+                        <div class="ml-4 flex items-center">
+                            <span class="text-sm text-gray-500 mr-3">{{ count }} jobs</span>
+                            <div class="w-24 bg-gray-200 rounded-full h-3">
+                                <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full" 
+                                     style="width: {{ (count / stats.source_breakdown[0][1] * 100)|round }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                {% if stats.source_breakdown|length == 0 %}
+                <div class="text-center py-8">
+                    <i class="fas fa-chart-bar text-gray-400 text-4xl mb-2"></i>
+                    <p class="text-gray-500">No job source data available</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
     <!-- Company Breakdown -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <!-- Companies Chart -->

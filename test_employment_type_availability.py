@@ -94,3 +94,4 @@ async def test_employment_type_availability():
 
 if __name__ == "__main__":
     asyncio.run(test_employment_type_availability())
+

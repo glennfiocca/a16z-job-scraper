@@ -131,6 +131,40 @@ def stats():
                 Job.company.isnot(None), Job.title != 'Unknown Title'
             ).group_by(Job.company).order_by(func.count(Job.id).desc()).all()
             
+            # Job source breakdown
+            source_stats = {
+                'Greenhouse': Job.query.filter(Job.url.like('%greenhouse%')).count(),
+                'Lever': Job.query.filter(Job.url.like('%lever%')).count(),
+                'Ashby': Job.query.filter(Job.url.like('%ashby%')).count(),
+                'Workday': Job.query.filter(Job.url.like('%workday%')).count(),
+                'SmartRecruiters': Job.query.filter(Job.url.like('%smartrecruiters%')).count(),
+                'Workable': Job.query.filter(Job.url.like('%workable%')).count(),
+                'Stripe': Job.query.filter(Job.url.like('%stripe%')).count(),
+                'Databricks': Job.query.filter(Job.url.like('%databricks%')).count(),
+                'Waymo': Job.query.filter(Job.url.like('%waymo%')).count(),
+                'Navan': Job.query.filter(Job.url.like('%navan%')).count(),
+                'Wiz': Job.query.filter(Job.url.like('%wiz%')).count(),
+                'Fivetran': Job.query.filter(Job.url.like('%fivetran%')).count(),
+                'Other': Job.query.filter(
+                    ~Job.url.like('%greenhouse%') & 
+                    ~Job.url.like('%lever%') & 
+                    ~Job.url.like('%ashby%') & 
+                    ~Job.url.like('%workday%') & 
+                    ~Job.url.like('%smartrecruiters%') & 
+                    ~Job.url.like('%workable%') & 
+                    ~Job.url.like('%stripe%') & 
+                    ~Job.url.like('%databricks%') & 
+                    ~Job.url.like('%waymo%') & 
+                    ~Job.url.like('%navan%') & 
+                    ~Job.url.like('%wiz%') & 
+                    ~Job.url.like('%fivetran%')
+                ).count()
+            }
+            
+            # Filter out sources with 0 jobs and sort by count
+            source_breakdown = [(source, count) for source, count in source_stats.items() if count > 0]
+            source_breakdown.sort(key=lambda x: x[1], reverse=True)
+            
             # Recent jobs (last 24 hours)
             cutoff = datetime.utcnow() - timedelta(hours=24)
             recent_jobs = Job.query.filter(
@@ -139,12 +173,14 @@ def stats():
             ).order_by(desc(Job.scraped_at)).limit(10).all()
         else:
             company_stats = []
+            source_breakdown = []
             recent_jobs = []
         
         stats_data = {
             'total_jobs': total_jobs,
             'companies': len(company_stats),
             'company_breakdown': company_stats,
+            'source_breakdown': source_breakdown,
             'recent_jobs': recent_jobs
         }
         

@@ -154,3 +154,4 @@ if __name__ == "__main__":
             print("\n❌ Migration failed")
     else:
         print("\n❌ Failed to add columns")
+

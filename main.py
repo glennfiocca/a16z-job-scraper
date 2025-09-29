@@ -2127,7 +2127,6 @@ def save_job_to_db(job_data):
                 existing_job.salary_range = job_data.get('salary_range', existing_job.salary_range)
                 existing_job.experience_level = job_data.get('experience_level', existing_job.experience_level)
                 existing_job.remote_type = job_data.get('remote_type', existing_job.remote_type)
-                existing_job.application_deadline = job_data.get('application_deadline', existing_job.application_deadline)
                 existing_job.posted_date = job_data.get('posted_date', existing_job.posted_date)
                 existing_job.source = job_data.get('source', existing_job.source)
                 existing_job.scraped_at = datetime.utcnow()  # Update scrape timestamp
@@ -2164,7 +2163,6 @@ def save_job_to_db(job_data):
             salary_range=job_data.get('salary_range'),
             experience_level=job_data.get('experience_level'),
             remote_type=job_data.get('remote_type'),
-            application_deadline=job_data.get('application_deadline'),
             url=job_data.get('url'),
             posted_date=job_data.get('posted_date'),
             source=job_data.get('source'),

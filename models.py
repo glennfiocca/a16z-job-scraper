@@ -29,6 +29,7 @@ class Job(db.Model):
     application_deadline = db.Column(db.String(100), nullable=True)
     url = db.Column(db.String(500), nullable=True)
     posted_date = db.Column(db.String(100), nullable=True)
+    source = db.Column(db.Text, nullable=True)
     scraped_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):

@@ -744,17 +744,6 @@ async def extract_databricks_job(page, job_data):
         # Employment type - assume Full time for most roles
         job_data['employment_type'] = 'Full time'
         
-        # Job ID from URL
-        try:
-            url_parts = job_data['url'].split('/')
-            if len(url_parts) > 1:
-                # Extract job ID from URL (usually the last part before query params)
-                job_id = url_parts[-1].split('?')[0]
-                if job_id and job_id != 'careers':
-                    job_data['job_id'] = job_id
-        except:
-            pass
-        
         # Extract detailed content
         content_selectors = ['main', '.job-description', '.content', 'article']
         full_content = ""
@@ -910,16 +899,6 @@ async def extract_waymo_job(page, job_data):
         ''')
         job_data['employment_type'] = employment_type
         
-        # Job ID from URL
-        try:
-            url_parts = job_data['url'].split('/')
-            if len(url_parts) > 1:
-                job_id = url_parts[-1].split('?')[0]
-                if job_id and job_id != 'jobs':
-                    job_data['job_id'] = job_id
-        except:
-            pass
-        
         # Extract detailed content
         content_selectors = ['main', '.job-description', '.content', 'article', '.page-row']
         full_content = ""
@@ -1046,16 +1025,6 @@ async def extract_navan_job(page, job_data):
         
         # Employment type - assume Full time for most roles
         job_data['employment_type'] = 'Full time'
-        
-        # Job ID from URL
-        try:
-            url_parts = job_data['url'].split('/')
-            if len(url_parts) > 1:
-                job_id = url_parts[-1].split('?')[0]
-                if job_id and job_id != 'openings':
-                    job_data['job_id'] = job_id
-        except:
-            pass
         
         # Extract detailed content - Navan has specific structure
         full_content = await page.evaluate('''
@@ -1187,18 +1156,6 @@ async def extract_wiz_job(page, job_data):
         # Employment type - assume Full time for most roles
         job_data['employment_type'] = 'Full time'
         
-        # Job ID from URL
-        try:
-            url_parts = job_data['url'].split('/')
-            if len(url_parts) > 1:
-                # Extract job ID from URL like /job/4004643006/
-                for part in url_parts:
-                    if part.isdigit():
-                        job_data['job_id'] = part
-                        break
-        except:
-            pass
-        
         # Extract detailed content
         content_selectors = ['main', '.job-description', '.content', 'article']
         full_content = ""
@@ -1290,19 +1247,6 @@ async def extract_fivetran_job(page, job_data):
         # Employment type - assume Full time for most roles
         job_data['employment_type'] = 'Full time'
         
-        # Job ID from URL
-        try:
-            url_parts = job_data['url'].split('?')
-            if len(url_parts) > 1:
-                # Extract job ID from query parameter
-                query_params = url_parts[1]
-                if 'gh_jid=' in query_params:
-                    job_id = query_params.split('gh_jid=')[1].split('&')[0]
-                    if job_id:
-                        job_data['job_id'] = job_id
-        except:
-            pass
-        
         # Extract detailed content
         content_selectors = ['main', '.job-description', '.content', 'article', '.main']
         full_content = ""
@@ -1366,18 +1310,6 @@ async def extract_greenhouse_job(page, job_data):
         emp_type = await get_text_by_selectors(page, type_selectors)
         if emp_type:
             job_data['employment_type'] = emp_type
-        
-        # Job ID
-        job_id = None
-        try:
-            url_parts = job_data['url'].split('/')
-            if 'jobs' in url_parts:
-                job_id_index = url_parts.index('jobs') + 1
-                if job_id_index < len(url_parts):
-                    job_id = url_parts[job_id_index].split('?')[0]
-            job_data['job_id'] = job_id
-        except:
-            pass
         
         # Extract detailed content - stop at "Create a Job Alert" section
         full_content = await page.evaluate('''
@@ -1510,15 +1442,6 @@ async def extract_lever_job(page, job_data):
         emp_type = await get_text_by_selectors(page, type_selectors)
         if emp_type:
             job_data['employment_type'] = emp_type
-        
-        
-        # Job ID from URL
-        try:
-            url_parts = job_data['url'].split('/')
-            if len(url_parts) > 2:
-                job_data['job_id'] = url_parts[-1].split('?')[0]
-        except:
-            pass
         
         # Extract detailed content with comprehensive selectors
         content_selectors = [
@@ -1658,15 +1581,6 @@ async def extract_ashby_job(page, job_data):
                     job_data['employment_type'] = 'Contract'
         except Exception as e:
             print(f"Error extracting employment type: {e}")
-        
-        
-        # Job ID from URL
-        try:
-            url_parts = job_data['url'].split('/')
-            if len(url_parts) > 1:
-                job_data['job_id'] = url_parts[-1].split('?')[0]
-        except:
-            pass
         
         # Extract detailed content with updated selectors for Ashby's current structure
         content_selectors = [
@@ -1814,15 +1728,6 @@ async def extract_stripe_job(page, job_data):
             ''')
             if emp_type_text:
                 job_data['employment_type'] = emp_type_text
-        except:
-            pass
-        
-        
-        # Job ID from URL - Stripe URLs have job IDs at the end
-        try:
-            url_parts = job_data['url'].split('/')
-            if len(url_parts) > 1:
-                job_data['job_id'] = url_parts[-1].split('?')[0]
         except:
             pass
         
@@ -2222,7 +2127,6 @@ def save_job_to_db(job_data):
                 existing_job.salary_range = job_data.get('salary_range', existing_job.salary_range)
                 existing_job.experience_level = job_data.get('experience_level', existing_job.experience_level)
                 existing_job.remote_type = job_data.get('remote_type', existing_job.remote_type)
-                existing_job.job_id = job_data.get('job_id', existing_job.job_id)
                 existing_job.application_deadline = job_data.get('application_deadline', existing_job.application_deadline)
                 existing_job.posted_date = job_data.get('posted_date', existing_job.posted_date)
                 existing_job.source = job_data.get('source', existing_job.source)
@@ -2260,7 +2164,6 @@ def save_job_to_db(job_data):
             salary_range=job_data.get('salary_range'),
             experience_level=job_data.get('experience_level'),
             remote_type=job_data.get('remote_type'),
-            job_id=job_data.get('job_id'),
             application_deadline=job_data.get('application_deadline'),
             url=job_data.get('url'),
             posted_date=job_data.get('posted_date'),

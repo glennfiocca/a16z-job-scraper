@@ -24,7 +24,6 @@ class Job(db.Model):
     salary_range = db.Column(db.String(255), nullable=True)
     experience_level = db.Column(db.String(100), nullable=True)
     remote_type = db.Column(db.Text, nullable=True)
-    job_id = db.Column(db.String(100), nullable=True)
     application_deadline = db.Column(db.String(100), nullable=True)
     url = db.Column(db.String(500), nullable=True)
     posted_date = db.Column(db.String(100), nullable=True)

@@ -2,12 +2,18 @@
 
 {% block title %}Statistics - A16Z Jobs Dashboard{% endblock %}
 
+<!-- Cache busting -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
 {% block content %}
 <div class="px-4 sm:px-0">
     <!-- Header -->
     <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900">Jobs Statistics</h1>
         <p class="mt-2 text-gray-600">Overview of job postings across the a16z portfolio</p>
+        <p class="text-xs text-gray-400 mt-1">Version 2.0 - Updated with Source Breakdown</p>
     </div>
 
     <!-- Key Metrics -->
@@ -61,113 +67,147 @@
         </div>
     </div>
 
-    <!-- Job Source Breakdown -->
+    <!-- Tab Navigation -->
     <div class="mb-8">
-        <div class="bg-white shadow rounded-lg">
-            <div class="px-4 py-5 sm:p-6">
-                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Jobs by Source Platform</h3>
-                <p class="text-sm text-gray-600 mb-6">Breakdown of job postings by ATS (Applicant Tracking System) and job board platforms</p>
-                <div class="space-y-4">
-                    {% for source, count in stats.source_breakdown %}
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center flex-1 min-w-0">
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-medium text-gray-900 truncate">{{ source }}</p>
-                            </div>
-                        </div>
-                        <div class="ml-4 flex items-center">
-                            <span class="text-sm text-gray-500 mr-3">{{ count }} jobs</span>
-                            <div class="w-24 bg-gray-200 rounded-full h-3">
-                                <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full" 
-                                     style="width: {{ (count / stats.source_breakdown[0][1] * 100)|round }}%"></div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                
-                {% if stats.source_breakdown|length == 0 %}
-                <div class="text-center py-8">
-                    <i class="fas fa-chart-bar text-gray-400 text-4xl mb-2"></i>
-                    <p class="text-gray-500">No job source data available</p>
-                </div>
-                {% endif %}
-            </div>
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                <button onclick="switchTab('companies')" id="tab-companies" 
+                        class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm tab-button active">
+                    <i class="fas fa-building mr-2"></i>
+                    Companies
+                </button>
+                <button onclick="switchTab('sources')" id="tab-sources" 
+                        class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm tab-button">
+                    <i class="fas fa-chart-bar mr-2"></i>
+                    Sources
+                </button>
+                <button onclick="switchTab('recent')" id="tab-recent" 
+                        class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm tab-button">
+                    <i class="fas fa-clock mr-2"></i>
+                    Recent Jobs
+                </button>
+            </nav>
         </div>
     </div>
 
-    <!-- Company Breakdown -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <!-- Companies Chart -->
-        <div class="bg-white shadow rounded-lg">
-            <div class="px-4 py-5 sm:p-6">
-                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Jobs by Company</h3>
-                <div class="space-y-3">
-                    {% for company, count in stats.company_breakdown %}
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center flex-1 min-w-0">
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-medium text-gray-900 truncate">{{ company }}</p>
+    <!-- Tab Content -->
+    <div class="space-y-6">
+        <!-- Companies Tab -->
+        <div id="content-companies" class="tab-content">
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Jobs by Company</h3>
+                    <p class="text-sm text-gray-600 mb-6">Breakdown of job postings by company across the a16z portfolio</p>
+                    <div class="space-y-3">
+                        {% for company, count in stats.company_breakdown %}
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center flex-1 min-w-0">
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-900 truncate">{{ company }}</p>
+                                </div>
+                            </div>
+                            <div class="ml-4 flex items-center">
+                                <span class="text-sm text-gray-500 mr-2">{{ count }} jobs</span>
+                                <div class="w-16 bg-gray-200 rounded-full h-2">
+                                    <div class="bg-blue-600 h-2 rounded-full" 
+                                         style="width: {{ (count / stats.company_breakdown[0][1] * 100)|round }}%"></div>
+                                </div>
                             </div>
                         </div>
-                        <div class="ml-4 flex items-center">
-                            <span class="text-sm text-gray-500 mr-2">{{ count }} jobs</span>
-                            <div class="w-16 bg-gray-200 rounded-full h-2">
-                                <div class="bg-blue-600 h-2 rounded-full" 
-                                     style="width: {{ (count / stats.company_breakdown[0][1] * 100)|round }}%"></div>
-                            </div>
-                        </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
+                    
+                    {% if stats.company_breakdown|length > 10 %}
+                    <div class="mt-4 text-center">
+                        <a href="/" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                            View all companies <i class="fas fa-arrow-right ml-1"></i>
+                        </a>
+                    </div>
+                    {% endif %}
                 </div>
-                
-                {% if stats.company_breakdown|length > 10 %}
-                <div class="mt-4 text-center">
-                    <a href="/" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                        View all companies <i class="fas fa-arrow-right ml-1"></i>
-                    </a>
-                </div>
-                {% endif %}
             </div>
         </div>
 
-        <!-- Recent Jobs -->
-        <div class="bg-white shadow rounded-lg">
-            <div class="px-4 py-5 sm:p-6">
-                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Recently Added Jobs</h3>
-                <div class="space-y-4">
-                    {% for job in stats.recent_jobs %}
-                    <div class="border-l-4 border-blue-500 pl-4">
-                        <div class="flex items-start justify-between">
-                            <div class="flex-1 min-w-0">
-                                <h4 class="text-sm font-medium text-gray-900">
-                                    <a href="{{ url_for('job_detail', job_id=job.id) }}" class="hover:text-blue-600">
-                                        {{ job.title }}
-                                    </a>
-                                </h4>
-                                <p class="text-sm text-gray-600 mt-1">
-                                    {% if job.company %}{{ job.company }}{% endif %}
-                                    {% if job.company and job.location %} • {% endif %}
-                                    {% if job.location %}{{ job.location }}{% endif %}
-                                </p>
+        <!-- Sources Tab -->
+        <div id="content-sources" class="tab-content hidden">
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Jobs by Source Platform</h3>
+                    <p class="text-sm text-gray-600 mb-6">Breakdown of job postings by ATS (Applicant Tracking System) and job board platforms</p>
+                    <div class="space-y-4">
+                        {% for source, count in stats.source_breakdown %}
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center flex-1 min-w-0">
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-900 truncate">{{ source }}</p>
+                                </div>
                             </div>
-                            <div class="ml-4 flex-shrink-0">
-                                <span class="relative-time text-xs text-gray-500" data-timestamp="{{ job.scraped_at.isoformat() }}">
-                                    {{ job.scraped_at.strftime('%m/%d') }}
-                                </span>
+                            <div class="ml-4 flex items-center">
+                                <span class="text-sm text-gray-500 mr-3">{{ count }} jobs</span>
+                                <div class="w-24 bg-gray-200 rounded-full h-3">
+                                    {% if stats.source_breakdown|length > 0 %}
+                                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full" 
+                                         style="width: {{ (count / stats.source_breakdown[0][1] * 100)|round }}%"></div>
+                                    {% else %}
+                                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full" 
+                                         style="width: 0%"></div>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
+                    
+                    {% if stats.source_breakdown|length == 0 %}
+                    <div class="text-center py-8">
+                        <i class="fas fa-chart-bar text-gray-400 text-4xl mb-2"></i>
+                        <p class="text-gray-500">No job source data available</p>
+                    </div>
+                    {% endif %}
                 </div>
-                
-                {% if stats.recent_jobs|length == 10 %}
-                <div class="mt-4 text-center">
-                    <a href="/" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                        View all jobs <i class="fas fa-arrow-right ml-1"></i>
-                    </a>
+            </div>
+        </div>
+
+        <!-- Recent Jobs Tab -->
+        <div id="content-recent" class="tab-content hidden">
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Recently Added Jobs</h3>
+                    <p class="text-sm text-gray-600 mb-6">Latest job postings added in the last 24 hours</p>
+                    <div class="space-y-4">
+                        {% for job in stats.recent_jobs %}
+                        <div class="border-l-4 border-blue-500 pl-4">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1 min-w-0">
+                                    <h4 class="text-sm font-medium text-gray-900">
+                                        <a href="{{ url_for('job_detail', job_id=job.id) }}" class="hover:text-blue-600">
+                                            {{ job.title }}
+                                        </a>
+                                    </h4>
+                                    <p class="text-sm text-gray-600 mt-1">
+                                        {% if job.company %}{{ job.company }}{% endif %}
+                                        {% if job.company and job.location %} • {% endif %}
+                                        {% if job.location %}{{ job.location }}{% endif %}
+                                    </p>
+                                </div>
+                                <div class="ml-4 flex-shrink-0">
+                                    <span class="relative-time text-xs text-gray-500" data-timestamp="{{ job.scraped_at.isoformat() }}">
+                                        {{ job.scraped_at.strftime('%m/%d') }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    {% if stats.recent_jobs|length == 10 %}
+                    <div class="mt-4 text-center">
+                        <a href="/" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                            View all jobs <i class="fas fa-arrow-right ml-1"></i>
+                        </a>
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %}
             </div>
         </div>
     </div>
@@ -191,4 +231,63 @@
         </div>
     </div>
 </div>
+
+<script>
+function switchTab(tabName) {
+    // Hide all tab contents
+    const contents = document.querySelectorAll('.tab-content');
+    contents.forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    // Remove active class from all tab buttons
+    const buttons = document.querySelectorAll('.tab-button');
+    buttons.forEach(button => {
+        button.classList.remove('active', 'border-blue-500', 'text-blue-600');
+        button.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+    });
+    
+    // Show selected tab content
+    const selectedContent = document.getElementById(`content-${tabName}`);
+    if (selectedContent) {
+        selectedContent.classList.remove('hidden');
+    }
+    
+    // Add active class to selected tab button
+    const selectedButton = document.getElementById(`tab-${tabName}`);
+    if (selectedButton) {
+        selectedButton.classList.add('active', 'border-blue-500', 'text-blue-600');
+        selectedButton.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+    }
+}
+
+// Initialize the first tab as active
+document.addEventListener('DOMContentLoaded', function() {
+    // Set initial active states
+    const companiesButton = document.getElementById('tab-companies');
+    const companiesContent = document.getElementById('content-companies');
+    
+    if (companiesButton && companiesContent) {
+        companiesButton.classList.add('border-blue-500', 'text-blue-600');
+        companiesButton.classList.remove('border-transparent', 'text-gray-500');
+        companiesContent.classList.remove('hidden');
+    }
+});
+</script>
+
+<style>
+.tab-button {
+    transition: all 0.2s ease-in-out;
+}
+
+.tab-button:hover {
+    color: #374151;
+    border-color: #d1d5db;
+}
+
+.tab-button.active {
+    color: #2563eb;
+    border-color: #2563eb;
+}
+</style>
 {% endblock %}

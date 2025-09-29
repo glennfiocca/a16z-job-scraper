@@ -23,7 +23,6 @@ class Job(db.Model):
     benefits = db.Column(db.Text, nullable=True)
     salary_range = db.Column(db.String(255), nullable=True)
     experience_level = db.Column(db.String(100), nullable=True)
-    department = db.Column(db.String(255), nullable=True)
     remote_type = db.Column(db.Text, nullable=True)
     job_id = db.Column(db.String(100), nullable=True)
     application_deadline = db.Column(db.String(100), nullable=True)

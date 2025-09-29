@@ -614,7 +614,8 @@ async def extract_job_details_advanced(page, job_url, company_name):
     """Extract job details with provider-specific parsing"""
     job_data = {
         'url': job_url,
-        'company': company_name
+        'company': company_name,
+        'source': extract_source_from_url(job_url)
     }
     
     try:
@@ -2137,6 +2138,50 @@ def extract_company_from_url(url):
         pass
     return "Unknown Company"
 
+def extract_source_from_url(url):
+    """Extract source platform from URL"""
+    try:
+        url_lower = url.lower()
+        
+        # Check for known ATS platforms
+        if 'greenhouse' in url_lower:
+            return 'Greenhouse'
+        elif 'lever' in url_lower:
+            return 'Lever'
+        elif 'ashby' in url_lower:
+            return 'Ashby'
+        elif 'workday' in url_lower:
+            return 'Workday'
+        elif 'smartrecruiters' in url_lower:
+            return 'SmartRecruiters'
+        elif 'workable' in url_lower:
+            return 'Workable'
+        elif 'stripe.com' in url_lower:
+            return 'Stripe'
+        elif 'databricks.com' in url_lower:
+            return 'Databricks'
+        elif 'waymo.com' in url_lower:
+            return 'Waymo'
+        elif 'navan.com' in url_lower:
+            return 'Navan'
+        elif 'wiz.io' in url_lower:
+            return 'Wiz'
+        elif 'fivetran.com' in url_lower:
+            return 'Fivetran'
+        else:
+            # Try to extract from domain for other platforms
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            domain = parsed.netloc
+            if domain:
+                # Remove www. and common TLDs
+                domain = domain.replace('www.', '')
+                domain = domain.split('.')[0]
+                return domain.replace('-', ' ').title()
+    except Exception:
+        pass
+    return 'Other'
+
 def save_job_to_db(job_data):
     """Save comprehensive job data to the database"""
     try:
@@ -2180,6 +2225,7 @@ def save_job_to_db(job_data):
                 existing_job.job_id = job_data.get('job_id', existing_job.job_id)
                 existing_job.application_deadline = job_data.get('application_deadline', existing_job.application_deadline)
                 existing_job.posted_date = job_data.get('posted_date', existing_job.posted_date)
+                existing_job.source = job_data.get('source', existing_job.source)
                 existing_job.scraped_at = datetime.utcnow()  # Update scrape timestamp
                 
                 db.session.commit()
@@ -2218,6 +2264,7 @@ def save_job_to_db(job_data):
             application_deadline=job_data.get('application_deadline'),
             url=job_data.get('url'),
             posted_date=job_data.get('posted_date'),
+            source=job_data.get('source'),
             scraped_at=datetime.utcnow()
         )
         

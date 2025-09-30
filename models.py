@@ -16,6 +16,7 @@ class Job(db.Model):
     title = db.Column(db.String(255), nullable=False)
     company = db.Column(db.String(255), nullable=True)
     location = db.Column(db.Text, nullable=True)
+    alternate_locations = db.Column(db.Text, nullable=True)
     employment_type = db.Column(db.String(100), nullable=True)
     description = db.Column(db.Text, nullable=True)
     requirements = db.Column(db.Text, nullable=True)

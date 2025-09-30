@@ -89,10 +89,7 @@ def add_salary_columns():
             db.engine.execute(text("""
                 ALTER TABLE jobs 
                 ADD COLUMN IF NOT EXISTS salary_min INTEGER,
-                ADD COLUMN IF NOT EXISTS salary_max INTEGER,
-                ADD COLUMN IF NOT EXISTS salary_currency VARCHAR(10) DEFAULT 'USD',
-                ADD COLUMN IF NOT EXISTS salary_period VARCHAR(20) DEFAULT 'yearly',
-                ADD COLUMN IF NOT EXISTS salary_standardized BOOLEAN DEFAULT FALSE
+                ADD COLUMN IF NOT EXISTS salary_max INTEGER
             """))
             
             print("✅ Added standardized salary columns")
@@ -119,9 +116,6 @@ def populate_standardized_salary():
                 # Update standardized columns
                 job.salary_min = salary_data.min_salary
                 job.salary_max = salary_data.max_salary
-                job.salary_currency = salary_data.currency
-                job.salary_period = salary_data.period
-                job.salary_standardized = True
         
         try:
             db.session.commit()

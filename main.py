@@ -6,6 +6,111 @@ from flask import Flask
 from models import db, Job
 from datetime import datetime
 
+def parse_locations(location_text):
+    """Parse location text and separate primary location from alternate locations"""
+    if not location_text or location_text.strip() == "":
+        return None, None
+    
+    # Clean the location text
+    clean_text = location_text.strip()
+    
+    # Common separators for multiple locations (in order of preference)
+    separators = [
+        ';',  # Semicolon - most reliable for multiple locations
+        '|',  # Pipe
+        '\n',  # Newline
+        ' and ',  # " and " (case insensitive)
+        ' or ',   # " or " (case insensitive)
+        ' • ',    # Bullet point
+        ' / ',    # Forward slash
+    ]
+    
+    # Try to split on separators
+    locations = []
+    for separator in separators:
+        if separator in clean_text:
+            # Split and clean each location
+            parts = clean_text.split(separator)
+            locations = [part.strip() for part in parts if part.strip()]
+            
+            # Check if any of the parts contain other separators and need further splitting
+            expanded_locations = []
+            for part in locations:
+                # Check if this part contains other separators
+                has_other_separators = any(sep in part for sep in separators if sep != separator)
+                if has_other_separators:
+                    # Recursively parse this part
+                    sub_primary, sub_alternate = parse_locations(part)
+                    if sub_primary:
+                        expanded_locations.append(sub_primary)
+                    if sub_alternate:
+                        expanded_locations.extend(sub_alternate.split('; '))
+                else:
+                    expanded_locations.append(part)
+            
+            locations = expanded_locations
+            # If we found locations, break and don't try other separators
+            break
+    
+    # If no separators found, check if it looks like multiple locations with commas
+    if not locations:
+        # Only split on commas if it looks like multiple distinct locations
+        # (e.g., "City, State, City, State" pattern)
+        comma_parts = clean_text.split(', ')
+        
+        # Check if this looks like multiple locations by looking for state abbreviations
+        location_keywords = ['CA', 'NY', 'TX', 'FL', 'WA', 'OR', 'CO', 'IL', 'MA', 'PA', 'GA', 'NC', 'VA', 'AZ', 'OH', 'MI', 'TN', 'IN', 'MO', 'MD', 'WI', 'MN', 'LA', 'AL', 'KY', 'SC', 'IA', 'OK', 'CT', 'UT', 'AR', 'NV', 'MS', 'KS', 'NM', 'NE', 'WV', 'ID', 'HI', 'NH', 'ME', 'RI', 'MT', 'DE', 'SD', 'ND', 'AK', 'VT', 'WY']
+        has_state_abbrevs = any(keyword in clean_text for keyword in location_keywords)
+        
+        if has_state_abbrevs and len(comma_parts) >= 3:
+            # Try to group parts into city, state pairs
+            grouped_locations = []
+            i = 0
+            while i < len(comma_parts):
+                if i + 1 < len(comma_parts):
+                    # Check if this looks like a city, state pair
+                    current_part = comma_parts[i].strip()
+                    next_part = comma_parts[i + 1].strip()
+                    
+                    # If next part is a state abbreviation, group them together
+                    if next_part in location_keywords:
+                        grouped_locations.append(f"{current_part}, {next_part}")
+                        i += 2
+                    else:
+                        # Single part location
+                        grouped_locations.append(current_part)
+                        i += 1
+                else:
+                    # Last part
+                    grouped_locations.append(comma_parts[i].strip())
+                    i += 1
+            
+            if len(grouped_locations) > 1:
+                locations = grouped_locations
+            else:
+                locations = [clean_text]
+        else:
+            locations = [clean_text]
+    
+    # Filter out empty or invalid locations
+    valid_locations = []
+    for loc in locations:
+        loc = loc.strip()
+        if loc and len(loc) > 1:
+            valid_locations.append(loc)
+    
+    # If we have valid locations, separate primary from alternates
+    if valid_locations:
+        primary_location = valid_locations[0]
+        alternate_locations = valid_locations[1:] if len(valid_locations) > 1 else []
+        
+        # Join alternate locations with semicolon for storage
+        alternate_text = '; '.join(alternate_locations) if alternate_locations else None
+        
+        return primary_location, alternate_text
+    
+    return None, None
+
 def parse_salary_range(salary_text):
     """Parse salary text and extract clean numeric range"""
     if not salary_text or salary_text == "Not provided" or salary_text.strip() == "":
@@ -739,7 +844,10 @@ async def extract_databricks_job(page, job_data):
         ''')
         
         if location:
-            job_data['location'] = location
+            # Parse locations to separate primary from alternates
+            primary_location, alternate_locations = parse_locations(location)
+            job_data['location'] = primary_location
+            job_data['alternate_locations'] = alternate_locations
         
         # Employment type - assume Full time for most roles
         job_data['employment_type'] = 'Full time'
@@ -881,7 +989,10 @@ async def extract_waymo_job(page, job_data):
         ''')
         
         if location:
-            job_data['location'] = location
+            # Parse locations to separate primary from alternates
+            primary_location, alternate_locations = parse_locations(location)
+            job_data['location'] = primary_location
+            job_data['alternate_locations'] = alternate_locations
         
         # Employment type - extract from page content
         employment_type = await page.evaluate('''
@@ -1021,7 +1132,10 @@ async def extract_navan_job(page, job_data):
         ''')
         
         if location:
-            job_data['location'] = location
+            # Parse locations to separate primary from alternates
+            primary_location, alternate_locations = parse_locations(location)
+            job_data['location'] = primary_location
+            job_data['alternate_locations'] = alternate_locations
         
         # Employment type - assume Full time for most roles
         job_data['employment_type'] = 'Full time'
@@ -1151,7 +1265,10 @@ async def extract_wiz_job(page, job_data):
         ''')
         
         if location:
-            job_data['location'] = location
+            # Parse locations to separate primary from alternates
+            primary_location, alternate_locations = parse_locations(location)
+            job_data['location'] = primary_location
+            job_data['alternate_locations'] = alternate_locations
         
         # Employment type - assume Full time for most roles
         job_data['employment_type'] = 'Full time'
@@ -1242,7 +1359,10 @@ async def extract_fivetran_job(page, job_data):
         ''')
         
         if location:
-            job_data['location'] = location
+            # Parse locations to separate primary from alternates
+            primary_location, alternate_locations = parse_locations(location)
+            job_data['location'] = primary_location
+            job_data['alternate_locations'] = alternate_locations
         
         # Employment type - assume Full time for most roles
         job_data['employment_type'] = 'Full time'
@@ -1303,7 +1423,10 @@ async def extract_greenhouse_job(page, job_data):
         location_selectors = ['.job__location', '[class*="location"]', '.location', '[data-mapped="location"]', '.job-location']
         location = await get_text_by_selectors(page, location_selectors)
         if location:
-            job_data['location'] = location
+            # Parse locations to separate primary from alternates
+            primary_location, alternate_locations = parse_locations(location)
+            job_data['location'] = primary_location
+            job_data['alternate_locations'] = alternate_locations
         
         # Employment type
         type_selectors = ['.employment-type', '[data-mapped="employment_type"]']
@@ -1435,7 +1558,10 @@ async def extract_lever_job(page, job_data):
         location_selectors = ['.posting-categories .location', '.location']
         location = await get_text_by_selectors(page, location_selectors)
         if location:
-            job_data['location'] = location
+            # Parse locations to separate primary from alternates
+            primary_location, alternate_locations = parse_locations(location)
+            job_data['location'] = primary_location
+            job_data['alternate_locations'] = alternate_locations
         
         # Employment type
         type_selectors = ['.posting-categories .commitment', '.employment-type']
@@ -1564,7 +1690,10 @@ async def extract_ashby_job(page, job_data):
                 }
             ''')
             if location_text:
-                job_data['location'] = location_text
+                # Parse locations to separate primary from alternates
+                primary_location, alternate_locations = parse_locations(location_text)
+                job_data['location'] = primary_location
+                job_data['alternate_locations'] = alternate_locations
         except Exception as e:
             print(f"Error extracting location: {e}")
         
@@ -1697,7 +1826,10 @@ async def extract_stripe_job(page, job_data):
                 }
             ''')
             if location_text:
-                job_data['location'] = location_text
+                # Parse locations to separate primary from alternates
+                primary_location, alternate_locations = parse_locations(location_text)
+                job_data['location'] = primary_location
+                job_data['alternate_locations'] = alternate_locations
         except:
             pass
         
@@ -1833,7 +1965,10 @@ async def extract_generic_job(page, job_data):
         location_selectors = ['.location', '.job-location', '[class*="location"]']
         location = await get_text_by_selectors(page, location_selectors)
         if location:
-            job_data['location'] = location
+            # Parse locations to separate primary from alternates
+            primary_location, alternate_locations = parse_locations(location)
+            job_data['location'] = primary_location
+            job_data['alternate_locations'] = alternate_locations
         
         # Description
         desc_selectors = ['.description', '.job-description', 'main', '.content']
@@ -2090,6 +2225,16 @@ def extract_source_from_url(url):
 def save_job_to_db(job_data):
     """Save comprehensive job data to the database"""
     try:
+        # Import salary parser for filtering
+        from salary_parser import SalaryParser
+        parser = SalaryParser()
+        
+        # Check if job should be skipped due to hourly-only salary
+        salary_text = job_data.get('salary_range', '')
+        if salary_text and parser.should_skip_job(salary_text):
+            print(f"Skipping hourly-only job: {job_data.get('title', 'Unknown Title')} (salary: {salary_text[:50]}...)")
+            return
+        
         # Check if job already exists by URL
         existing_job = Job.query.filter_by(url=job_data.get('url')).first()
         if existing_job:
@@ -2107,6 +2252,13 @@ def save_job_to_db(job_data):
             elif not existing_job.employment_type:
                 should_update = True
                 update_reason = "missing employment type"
+            # Check if job has location but no alternate_locations (needs location parsing)
+            elif existing_job.location and not existing_job.alternate_locations:
+                # Check if the location text contains multiple locations that could be parsed
+                primary, alternate = parse_locations(existing_job.location)
+                if alternate:  # If parsing would create alternate locations
+                    should_update = True
+                    update_reason = "location needs parsing for alternate locations"
             # Check if job is very old (scraped more than 7 days ago)
             elif existing_job.scraped_at and (datetime.utcnow() - existing_job.scraped_at).days > 7:
                 should_update = True
@@ -2119,12 +2271,15 @@ def save_job_to_db(job_data):
                 existing_job.title = job_data.get('title', existing_job.title)
                 existing_job.company = job_data.get('company', existing_job.company)
                 existing_job.location = job_data.get('location', existing_job.location)
+                existing_job.alternate_locations = job_data.get('alternate_locations', existing_job.alternate_locations)
                 existing_job.employment_type = job_data.get('employment_type', existing_job.employment_type)
                 existing_job.description = job_data.get('description', existing_job.description)
                 existing_job.requirements = job_data.get('requirements', existing_job.requirements)
                 existing_job.responsibilities = job_data.get('responsibilities', existing_job.responsibilities)
                 existing_job.benefits = job_data.get('benefits', existing_job.benefits)
                 existing_job.salary_range = job_data.get('salary_range', existing_job.salary_range)
+                existing_job.salary_min = job_data.get('salary_min', existing_job.salary_min)
+                existing_job.salary_max = job_data.get('salary_max', existing_job.salary_max)
                 existing_job.experience_level = job_data.get('experience_level', existing_job.experience_level)
                 existing_job.remote_type = job_data.get('remote_type', existing_job.remote_type)
                 existing_job.posted_date = job_data.get('posted_date', existing_job.posted_date)
@@ -2150,17 +2305,30 @@ def save_job_to_db(job_data):
         # Standardize employment type to "Full time"
         job_data['employment_type'] = 'Full time'
         
+        # Parse and standardize salary data
+        if salary_text:
+            standardized_salary = parser.standardize_salary_range(salary_text)
+            job_data['salary_range'] = standardized_salary
+            
+            # Also parse for min/max values (for future use)
+            salary_data = parser.parse_salary(salary_text)
+            job_data['salary_min'] = salary_data.min_salary
+            job_data['salary_max'] = salary_data.max_salary
+        
         # Create new job record with all enhanced fields
         job = Job(
             title=job_data.get('title'),
             company=job_data.get('company'),
             location=job_data.get('location'),
+            alternate_locations=job_data.get('alternate_locations'),
             employment_type=job_data.get('employment_type'),
             description=job_data.get('description'),
             requirements=job_data.get('requirements'),
             responsibilities=job_data.get('responsibilities'),
             benefits=job_data.get('benefits'),
             salary_range=job_data.get('salary_range'),
+            salary_min=job_data.get('salary_min'),
+            salary_max=job_data.get('salary_max'),
             experience_level=job_data.get('experience_level'),
             remote_type=job_data.get('remote_type'),
             url=job_data.get('url'),

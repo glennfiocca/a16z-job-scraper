@@ -44,7 +44,7 @@ async def test_databricks_extraction():
                 print(f"   Job ID: {result.get('job_id', 'Not found')}")
                 
                 # Check for parsed sections
-                sections = [k for k in result.keys() if k in ['requirements', 'responsibilities', 'benefits', 'experience_level', 'remote_type']]
+                sections = [k for k in result.keys() if k in ['requirements', 'responsibilities', 'benefits', 'experience_level', 'work_environment']]
                 if sections:
                     print(f"   Parsed sections: {sections}")
                 

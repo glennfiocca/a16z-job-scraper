@@ -2021,7 +2021,7 @@ async def parse_job_sections(content):
             'responsibilities': ['responsibilities', 'what you\'ll do', 'you will', 'duties', 'role description', 'job description'],
             'benefits': ['benefits', 'what we offer', 'perks', 'compensation', 'package'],
             'experience_level': ['experience', 'years', 'seniority', 'level'],
-            'remote_type': ['remote', 'hybrid', 'onsite', 'location', 'work from']
+            'work_environment': ['remote', 'hybrid', 'onsite', 'location', 'work from']
         }
         
         for line in lines:
@@ -2078,21 +2078,21 @@ async def parse_job_sections(content):
         for section_name, section_content in sections.items():
             if section_content and isinstance(section_content, str):
                 section_lower = section_content.lower()
-                for remote_type, keywords in remote_keywords.items():
+                for work_env_type, keywords in remote_keywords.items():
                     if any(keyword in section_lower for keyword in keywords):
                         # Only set if we haven't found a better match
-                        if 'remote_type' not in sections or remote_type == 'remote':
-                            sections['remote_type'] = remote_type.title()
+                        if 'work_environment' not in sections or work_env_type == 'remote':
+                            sections['work_environment'] = work_env_type.title()
                             break
-                if 'remote_type' in sections:
+                if 'work_environment' in sections:
                     break
         
-        # If no remote type found in sections, look in the first 1000 characters of content
-        if 'remote_type' not in sections:
+        # If no work environment found in sections, look in the first 1000 characters of content
+        if 'work_environment' not in sections:
             content_sample = content_lower[:1000]  # Only check first 1000 characters
-            for remote_type, keywords in remote_keywords.items():
+            for work_env_type, keywords in remote_keywords.items():
                 if any(keyword in content_sample for keyword in keywords):
-                    sections['remote_type'] = remote_type.title()
+                    sections['work_environment'] = work_env_type.title()
                     break
         
     except Exception as e:
@@ -2281,7 +2281,7 @@ def save_job_to_db(job_data):
                 existing_job.salary_min = job_data.get('salary_min', existing_job.salary_min)
                 existing_job.salary_max = job_data.get('salary_max', existing_job.salary_max)
                 existing_job.experience_level = job_data.get('experience_level', existing_job.experience_level)
-                existing_job.remote_type = job_data.get('remote_type', existing_job.remote_type)
+                existing_job.work_environment = job_data.get('work_environment', existing_job.work_environment)
                 existing_job.posted_date = job_data.get('posted_date', existing_job.posted_date)
                 existing_job.source = job_data.get('source', existing_job.source)
                 existing_job.scraped_at = datetime.utcnow()  # Update scrape timestamp
@@ -2330,7 +2330,7 @@ def save_job_to_db(job_data):
             salary_min=job_data.get('salary_min'),
             salary_max=job_data.get('salary_max'),
             experience_level=job_data.get('experience_level'),
-            remote_type=job_data.get('remote_type'),
+            work_environment=job_data.get('work_environment'),
             url=job_data.get('url'),
             posted_date=job_data.get('posted_date'),
             source=job_data.get('source'),

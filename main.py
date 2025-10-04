@@ -1402,6 +1402,81 @@ async def extract_fivetran_job(page, job_data):
     
     return job_data
 
+def should_filter_job_by_employment_type(job_data):
+    """Check if job should be filtered based on employment type"""
+    title = job_data.get('title', '').lower()
+    description = job_data.get('description', '').lower()
+    employment_type = job_data.get('employment_type', '').lower()
+    
+    # First check employment_type field - this is the most reliable indicator
+    if employment_type in ['contract', 'part time', 'part-time', 'temporary', 'temp', 'internship', 'intern']:
+        return True, f"Employment type is: '{employment_type}'"
+    
+    # Only check content for very specific patterns that indicate non-full-time work
+    # Avoid false positives from legal compliance text
+    content = f"{title} {description}"
+    
+    # More specific patterns that are less likely to be false positives
+    specific_patterns = [
+        r'\bpart.?time\b', r'\binternship\b', r'\bintern\b',
+        r'\bapprentice\b', r'\bco.?op\b', r'\bseasonal\b', r'\bhourly\b',
+        r'\btemporary position\b', r'\btemp position\b', r'\bfreelance\b'
+    ]
+    
+    # Check for specific non-full-time indicators
+    for pattern in specific_patterns:
+        if re.search(pattern, content, re.IGNORECASE):
+            return True, f"Found non-full-time indicator: '{pattern}'"
+    
+    # Only check for "contract" in very specific contexts to avoid legal text
+    contract_context_patterns = [
+        r'\bcontract position\b', r'\bcontract role\b', r'\bcontractor position\b',
+        r'\bcontract work\b', r'\bcontract job\b'
+    ]
+    
+    for pattern in contract_context_patterns:
+        if re.search(pattern, content, re.IGNORECASE):
+            return True, f"Found contract position indicator: '{pattern}'"
+    
+    return False, "Passed employment type filter"
+
+def extract_work_environment_enhanced(content):
+    """Extract work environment with robust pattern matching"""
+    content_lower = content.lower()
+    
+    # Work environment detection patterns
+    remote_patterns = [
+        r'\bremote\b', r'\bwork from home\b', r'\bwfh\b', r'\bdistributed\b',
+        r'\bvirtual\b', r'\btelecommute\b', r'\bfully remote\b', r'\b100% remote\b'
+    ]
+    
+    hybrid_patterns = [
+        r'\bhybrid\b', r'\bmix of remote and office\b', r'\bflexible\b',
+        r'\bpartially remote\b', r'\bremote first\b', r'\boffice optional\b'
+    ]
+    
+    in_office_patterns = [
+        r'\bon.?site\b', r'\bin.?office\b', r'\bon.?premises\b', r'\boffice\b',
+        r'\blocation\b', r'\bheadquarters\b', r'\bworkspace\b'
+    ]
+    
+    # Check for remote work indicators
+    for pattern in remote_patterns:
+        if re.search(pattern, content_lower):
+            return 'remote'
+    
+    # Check for hybrid work indicators
+    for pattern in hybrid_patterns:
+        if re.search(pattern, content_lower):
+            return 'hybrid'
+    
+    # Check for in-office indicators
+    for pattern in in_office_patterns:
+        if re.search(pattern, content_lower):
+            return 'in-office'
+    
+    return 'in-office'  # Default assumption
+
 async def extract_greenhouse_salary(page, content):
     """Extract salary information from Greenhouse job posting"""
     salary_info = {}
@@ -1432,7 +1507,12 @@ async def extract_greenhouse_salary(page, content):
                 r'\$?([\d,]+)\s*[-–—]\s*\$?([\d,]+)\s*USD?(?=\s|$)',
                 r'\$?([\d,]+)K\s*[-–—]\s*\$?([\d,]+)K\s*USD?',
                 r'\$?([\d,]+)\s*to\s*\$?([\d,]+)\s*USD?',
-                r'\$?([\d,]+)K\s*to\s*\$?([\d,]+)K\s*USD?'
+                r'\$?([\d,]+)K\s*to\s*\$?([\d,]+)K\s*USD?',
+                # Add simple patterns for basic salary ranges
+                r'\$([\d,]+)\s*[-–—]\s*\$([\d,]+)',
+                r'\$([\d,]+)\s*to\s*\$([\d,]+)',
+                r'Salary Range\s*\$([\d,]+)\s*[-–—]\s*\$([\d,]+)',
+                r'Compensation\s*\$([\d,]+)\s*[-–—]\s*\$([\d,]+)'
             ]
             
             for pattern in salary_patterns:
@@ -1490,30 +1570,46 @@ async def parse_greenhouse_sections(content):
         current_section = None
         section_content = []
         
-        # Greenhouse-specific section headers
+        # Greenhouse-specific section headers - enhanced for better matching
         section_headers = {
             'responsibilities': [
                 'what you\'ll do', 'what you will do', 'you will', 'responsibilities', 
                 'duties', 'key responsibilities', 'role description', 'what you do',
-                'about the job', 'the opportunity'
+                'about the job', 'the opportunity', 'about this role', 'key responsibilities',
+                'what you\'ll be doing', 'what you will be doing', 'role overview',
+                'position overview', 'job overview', 'responsibility',
+                'you\'ll work to', 'you will work to', 'as a', 'in this role',
+                'the ideal candidate will', 'you\'ll be responsible for', 'you will be responsible for'
             ],
             'requirements': [
                 'required qualifications', 'requirements', 'you should have', 
                 'you have', 'qualifications', 'required skills', 'minimum qualifications',
                 'preferred qualifications', 'nice to have', 'bonus points',
-                'we\'d love to hear from you if you have'
+                'we\'d love to hear from you if you have', 'minimum qualifications',
+                'preferred qualifications', 'qualifications', 'you should have',
+                'required experience', 'experience required', 'skills required',
+                'what we\'re looking for', 'ideal candidate', 'candidate requirements',
+                'years of experience', 'experience in', 'proficiency in', 'knowledge of',
+                'strong', 'excellent', 'ability to', 'must have', 'should have',
+                '8+ years', '5+ years', '3+ years', '2+ years', '1+ years'
             ],
             'benefits': [
                 'benefits', 'what we offer', 'perks', 'compensation', 'package',
                 'healthcare benefits', 'additional benefits', 'retirement savings plan',
                 'income protection', 'generous time off', 'family planning',
                 'mental health resources', 'professional development',
-                'pay transparency disclosure', 'annual base salary range'
+                'pay transparency disclosure', 'annual base salary range',
+                'in addition to salary', 'comprehensive benefits', 'benefits package',
+                'what you can expect', 'compensation and benefits', 'total rewards',
+                'employee benefits', 'company benefits', 'work benefits'
             ],
             'work_environment': [
-                'remote', 'hybrid', 'onsite', 'on-site', 'location', 'work from',
-                'this is a full time role', 'this role can be held', 'work style',
-                'this is a full time role that can be held'
+                'remote work', 'work remotely', 'work from home', 'wfh', 'fully remote',
+                'hybrid work', 'hybrid role', 'onsite work', 'on-site work', 'in-office',
+                'this role can be held remotely', 'this role can be held from',
+                'work location', 'office location', 'must be located', 'work arrangement',
+                'work model', 'work style', 'location', 'workplace', 'work environment',
+                'this is a hybrid role', 'this is a remote role', 'this is an onsite role'
             ]
         }
         
@@ -1547,7 +1643,14 @@ async def parse_greenhouse_sections(content):
                     'submit application', 'privacy policy', 'candidate data privacy',
                     'applicant-privacy-notice', 'voluntary self-identification',
                     'equal employment opportunity', 'global data privacy notice',
-                    'commitment to equal opportunity', 'by applying for this job'
+                    'commitment to equal opportunity', 'by applying for this job',
+                    'flexible pto', 'company holidays', 'work-life balance',
+                    'health insurance', 'dental', 'vision insurance', 'premium coverage',
+                    'back to jobs', 'apply', 'powered by', 'greenhouse',
+                    'read our privacy policy', 'don\'t check off every box',
+                    'studies have shown that some of us', 'waymark is dedicated to building',
+                    'you may be just the right candidate', 'interested in building your career',
+                    'get future opportunities sent straight to your email'
                 ]
                 
                 if not any(indicator in line_lower for indicator in skip_indicators):
@@ -1557,14 +1660,139 @@ async def parse_greenhouse_sections(content):
         if current_section and section_content:
             sections[current_section] = '\n'.join(section_content)[:2000]
         
-        # Special handling for work environment
+        # Post-process to extract benefits from compensation sections if not already found
+        if 'benefits' not in sections:
+            content_lower = content.lower()
+            benefits_indicators = [
+                'offers equity', 'health insurance', 'dental', 'vision', 'retirement',
+                '401k', 'pto', 'vacation', 'parental leave', 'wellness benefits',
+                'mental health', 'generous pto', 'company holidays', 'work-life balance',
+                'flexible pto', 'stock options', 'equity', 'benefits package',
+                'comprehensive benefits', 'total rewards', 'additional benefits'
+            ]
+            
+            # Look for benefits content in the full text
+            benefits_content = []
+            lines = content.split('\n')
+            in_benefits_section = False
+            
+            for line in lines:
+                line_clean = line.strip()
+                if not line_clean:
+                    continue
+                    
+                line_lower = line_clean.lower()
+                
+                # Check if this line contains benefits indicators
+                if any(indicator in line_lower for indicator in benefits_indicators):
+                    in_benefits_section = True
+                    benefits_content.append(line_clean)
+                elif in_benefits_section and len(line_clean) > 20:  # Continue if we're in benefits section
+                    # Stop if we hit application forms or other sections
+                    if any(phrase in line_lower for phrase in [
+                        'create a job alert', 'apply for this job', 'requirements',
+                        'qualifications', 'responsibilities', 'what you\'ll do'
+                    ]):
+                        break
+                    benefits_content.append(line_clean)
+                elif in_benefits_section and len(line_clean) < 20:
+                    # Short lines might be continuation
+                    benefits_content.append(line_clean)
+            
+            if benefits_content:
+                sections['benefits'] = '\n'.join(benefits_content)[:2000]
+        
+        # Fallback section detection for missed sections
+        if 'responsibilities' not in sections or 'requirements' not in sections:
+            content_lower = content.lower()
+            lines = content.split('\n')
+            
+            # Look for responsibilities patterns even without clear headers
+            if 'responsibilities' not in sections:
+                responsibilities_content = []
+                in_responsibilities = False
+                
+                for line in lines:
+                    line_clean = line.strip()
+                    if not line_clean:
+                        continue
+                    
+                    line_lower = line_clean.lower()
+                    
+                    # Check for responsibilities indicators
+                    if any(phrase in line_lower for phrase in [
+                        'you\'ll work to', 'you will work to', 'as a', 'in this role',
+                        'you\'ll be responsible for', 'you will be responsible for',
+                        'the ideal candidate will', 'you\'ll generate', 'you\'ll shape',
+                        'you\'ll bring', 'you\'ll lead', 'you\'ll drive', 'you\'ll create'
+                    ]):
+                        in_responsibilities = True
+                        responsibilities_content.append(line_clean)
+                    elif in_responsibilities and len(line_clean) > 20:
+                        # Continue if we're in responsibilities section
+                        if any(phrase in line_lower for phrase in [
+                            'requirements', 'qualifications', 'benefits', 'compensation',
+                            'create a job alert', 'apply for this job'
+                        ]):
+                            break
+                        responsibilities_content.append(line_clean)
+                
+                if responsibilities_content:
+                    sections['responsibilities'] = '\n'.join(responsibilities_content)[:2000]
+            
+            # Look for requirements patterns even without clear headers
+            if 'requirements' not in sections:
+                requirements_content = []
+                in_requirements = False
+                
+                for line in lines:
+                    line_clean = line.strip()
+                    if not line_clean:
+                        continue
+                    
+                    line_lower = line_clean.lower()
+                    
+                    # Check for requirements indicators
+                    if any(phrase in line_lower for phrase in [
+                        'years of experience', 'experience in', 'proficiency in', 'knowledge of',
+                        'strong', 'excellent', 'ability to', 'must have', 'should have',
+                        '8+ years', '5+ years', '3+ years', '2+ years', '1+ years',
+                        'bachelor\'s degree', 'master\'s degree', 'phd', 'degree in'
+                    ]):
+                        in_requirements = True
+                        requirements_content.append(line_clean)
+                    elif in_requirements and len(line_clean) > 20:
+                        # Continue if we're in requirements section
+                        if any(phrase in line_lower for phrase in [
+                            'benefits', 'compensation', 'what we offer',
+                            'create a job alert', 'apply for this job'
+                        ]):
+                            break
+                        requirements_content.append(line_clean)
+                
+                if requirements_content:
+                    sections['requirements'] = '\n'.join(requirements_content)[:2000]
+        
+        # Special handling for work environment - look for specific patterns
         if 'work_environment' not in sections:
             content_lower = content.lower()
-            if 'remote' in content_lower and 'united states' in content_lower:
+            
+            # Look for specific remote work indicators
+            if any(phrase in content_lower for phrase in [
+                'this role can be held remotely', 'work remotely', 'fully remote',
+                'work from home', 'remote work', 'wfh'
+            ]):
                 sections['work_environment'] = 'Remote'
-            elif 'hybrid' in content_lower:
+            # Look for hybrid work indicators
+            elif any(phrase in content_lower for phrase in [
+                'hybrid work', 'hybrid role', 'mix of remote and office'
+            ]):
                 sections['work_environment'] = 'Hybrid'
-            elif 'onsite' in content_lower or 'on-site' in content_lower:
+            # Look for onsite work indicators
+            elif any(phrase in content_lower for phrase in [
+                'onsite work', 'on-site work', 'in-office', 'must be located',
+                'work at our office', 'office location'
+            ]):
                 sections['work_environment'] = 'Onsite'
         
     except Exception as e:
@@ -1620,98 +1848,120 @@ async def extract_greenhouse_job(page, job_data):
                 job_data['location'] = primary_location
                 job_data['alternate_locations'] = alternate_locations
         
-        # Employment type - Enhanced detection
+        # Employment type - Enhanced detection with better logic
         type_selectors = ['.employment-type', '[data-mapped="employment_type"]']
         emp_type = await get_text_by_selectors(page, type_selectors)
         if emp_type:
             job_data['employment_type'] = emp_type
         else:
-            # Fallback: infer from content
+            # Fallback: infer from content with more precise logic
             emp_type_fallback = await page.evaluate('''
                 () => {
                     const text = document.body.innerText.toLowerCase();
-                    if (text.includes('full time') || text.includes('full-time')) return 'Full time';
-                    if (text.includes('part time') || text.includes('part-time')) return 'Part time';
-                    if (text.includes('contract')) return 'Contract';
-                    if (text.includes('internship')) return 'Internship';
-                    return 'Full time'; // Default assumption
+                    
+                    // Look for explicit employment type indicators in job content
+                    // Avoid legal compliance text by looking for patterns near job-related keywords
+                    const jobContent = text.split('apply')[0]; // Focus on job content, not legal text
+                    
+                    // Check for part-time indicators first (more specific)
+                    if (jobContent.includes('part time') || jobContent.includes('part-time') || 
+                        jobContent.includes('parttime') || jobContent.includes('pt ')) {
+                        return 'Part time';
+                    }
+                    
+                    // Check for internship indicators
+                    if (jobContent.includes('internship') || jobContent.includes('intern ')) {
+                        return 'Internship';
+                    }
+                    
+                    // Check for contract indicators in job context (not legal text)
+                    if (jobContent.includes('contract position') || 
+                        jobContent.includes('contract role') ||
+                        jobContent.includes('contractor position') ||
+                        jobContent.includes('temporary position') ||
+                        jobContent.includes('temp position')) {
+                        return 'Contract';
+                    }
+                    
+                    // Check for full-time indicators
+                    if (jobContent.includes('full time') || jobContent.includes('full-time') || 
+                        jobContent.includes('fulltime') || jobContent.includes('ft ')) {
+                        return 'Full time';
+                    }
+                    
+                    // Default to full-time for most professional positions
+                    return 'Full time';
                 }
             ''')
             job_data['employment_type'] = emp_type_fallback
         
-        # Extract detailed content - stop at "Create a Job Alert" section
-        full_content = await page.evaluate('''
-            () => {
-                // Look for the main job content area
-                const contentSelectors = [
-                    '#content',
-                    '.section-wrapper',
-                    '.job-description',
-                    '[data-testid="jobDescription"]',
-                    '[data-qa="job-description"]',
-                    '.gh-content',
-                    '.posting-description',
-                    '.markdown-content',
-                    'main',
-                    'article',
-                    '[role="main"]'
-                ];
+        # Check if job should be filtered based on employment type
+        should_filter, filter_reason = should_filter_job_by_employment_type(job_data)
+        if should_filter:
+            print(f"Greenhouse: Job filtered - {filter_reason}")
+            return None
+        
+        # Extract detailed content - use a simpler approach
+        try:
+            # Try to get content from the main content area
+            content_element = await page.query_selector('main')
+            if not content_element:
+                content_element = await page.query_selector('body')
+            
+            if content_element:
+                full_content = await content_element.inner_text()
                 
-                let contentElement = null;
-                for (let selector of contentSelectors) {
-                    const element = document.querySelector(selector);
-                    if (element) {
-                        contentElement = element;
-                        break;
-                    }
-                }
+                # Clean up the content by removing application form sections
+                lines = full_content.split('\n')
+                cleaned_lines = []
                 
-                if (!contentElement) {
-                    return null;
-                }
+                # Skip initial navigation elements but continue processing
+                skip_initial_phrases = ['Back to jobs', 'Apply']
+                in_job_content = False
+                lines_processed = 0
                 
-                // Get all text content
-                const fullText = contentElement.innerText;
-                const lines = fullText.split('\\n');
-                
-                // Find the cutoff point - stop at "Create a Job Alert" or similar
-                let cutoffIndex = lines.length;
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i].trim();
+                for line in lines:
+                    line_clean = line.strip()
+                    if not line_clean:
+                        continue
                     
-                    // Stop at job alert sections
-                    if (line.includes('Create a Job Alert') ||
-                        line.includes('Create alert') ||
-                        line.includes('Interested in building your career') ||
-                        line.includes('Get future opportunities sent straight to your email') ||
-                        line.includes('Apply for this job') ||
-                        line.includes('indicates a required field') ||
-                        line.includes('Autofill with Greenhouse') ||
-                        line.includes('First Name') ||
-                        line.includes('Last Name') ||
-                        line.includes('Email') ||
-                        line.includes('Phone') ||
-                        line.includes('Resume') ||
-                        line.includes('Cover Letter') ||
-                        line.includes('LinkedIn Profile') ||
-                        line.includes('Website') ||
-                        line.includes('Portfolio') ||
-                        line.includes('GitHub') ||
-                        line.includes('Submit Application') ||
-                        line.includes('To view') && line.includes('privacy policy') ||
-                        line.includes('candidate data privacy policy') ||
-                        line.includes('applicant-privacy-notice')
-                    ) {
-                        cutoffIndex = i;
-                        break;
-                    }
-                }
+                    lines_processed += 1
+                    
+                    # Skip initial navigation elements
+                    if not in_job_content and any(phrase in line_clean for phrase in skip_initial_phrases):
+                        continue
+                    
+                    # Mark that we've started processing job content - be more inclusive
+                    if not in_job_content:
+                        # Start job content if we find company description, job title context, or job-related content
+                        if (any(phrase in line_clean.lower() for phrase in [
+                            'about', 'company', 'startup', 'building', 'developing', 'creating',
+                            'job', 'role', 'position', 'responsibilities', 'requirements', 'qualifications',
+                            'benefits', 'compensation', 'salary', 'perks', 'what we', 'who we',
+                            'mission', 'vision', 'values', 'team', 'work', 'career'
+                        ]) or lines_processed > 5):  # Start after skipping initial nav elements
+                            in_job_content = True
+                    
+                    # Stop at application forms and job alerts (but only after we've started processing content)
+                    if in_job_content and any(phrase in line_clean for phrase in [
+                        'Create a Job Alert', 'Apply for this job', 'indicates a required field',
+                        'First Name', 'Last Name', 'Email', 'Phone', 'Resume', 'Cover Letter',
+                        'Submit Application', 'Powered by', 'Privacy Policy', 
+                        'Don\'t check off every box', 'Studies have shown',
+                        'Waymark is dedicated', 'You may be just the right candidate',
+                        'Voluntary Self-Identification', 'Form CC-305', 'OMB Control Number'
+                    ]):
+                        break
+                    
+                    if in_job_content:
+                        cleaned_lines.append(line_clean)
                 
-                // Return only the content before the cutoff
-                const relevantLines = lines.slice(0, cutoffIndex);
-                return relevantLines.join('\\n').trim();
-            }
-        ''')
+                full_content = '\n'.join(cleaned_lines)
+            else:
+                full_content = None
+        except Exception as e:
+            print(f"Error extracting content: {e}")
+            full_content = None
         
         if full_content:
             job_data['description'] = full_content[:10000]
@@ -1721,6 +1971,9 @@ async def extract_greenhouse_job(page, job_data):
             sections = await parse_greenhouse_sections(full_content)
             job_data.update(sections)
             print(f"Greenhouse: Parsed sections: {list(sections.keys())}")
+            
+            # Enhanced work environment extraction
+            job_data['work_environment'] = extract_work_environment_enhanced(full_content)
         else:
             print("Greenhouse: No substantial content found after filtering")
         

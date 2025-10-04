@@ -131,6 +131,64 @@ def api_jobs():
             'scraped_at': job.scraped_at.isoformat() if job.scraped_at else None
         } for job in jobs] if jobs else [])
 
+@app.route('/api/jobs/load-more')
+def load_more_jobs():
+    """API endpoint for infinite scroll - load more jobs"""
+    page = request.args.get('page', 1, type=int)
+    company_filter = request.args.get('company', '')
+    source_filter = request.args.get('source', '')
+    search_query = request.args.get('search', '')
+    per_page = 20
+    
+    with app.app_context():
+        # Base query (same as index route)
+        query = Job.query.filter(Job.title != 'Unknown Title')
+        
+        # Apply filters (same as index route)
+        if company_filter:
+            query = query.filter(Job.company.ilike(f'%{company_filter}%'))
+        
+        if source_filter:
+            query = query.filter(Job.source.ilike(f'%{source_filter}%'))
+        
+        if search_query:
+            query = query.filter(
+                Job.title.ilike(f'%{search_query}%') |
+                Job.description.ilike(f'%{search_query}%') |
+                Job.company.ilike(f'%{search_query}%')
+            )
+        
+        # Paginate results
+        jobs = query.order_by(desc(Job.scraped_at)).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        # Convert jobs to JSON format
+        jobs_data = []
+        for job in jobs.items:
+            jobs_data.append({
+                'id': job.id,
+                'title': job.title,
+                'company': job.company,
+                'location': job.location,
+                'employment_type': job.employment_type,
+                'source': job.source,
+                'description': job.description[:200] + '...' if job.description and len(job.description) > 200 else job.description,
+                'source_url': job.source_url,
+                'scraped_at': job.scraped_at.isoformat() if job.scraped_at else None,
+                'scraped_at_formatted': job.scraped_at.strftime('%b %d') if job.scraped_at else None
+            })
+        
+        return jsonify({
+            'jobs': jobs_data,
+            'has_next': jobs.has_next,
+            'has_prev': jobs.has_prev,
+            'page': jobs.page,
+            'pages': jobs.pages,
+            'total': jobs.total,
+            'per_page': jobs.per_page
+        })
+
 @app.route('/stats')
 @app.route('/stats/')
 def stats():

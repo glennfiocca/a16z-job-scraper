@@ -1598,18 +1598,14 @@ def clean_job_description(description, sections):
     lines = description.split('\n')
     cleaned_lines = []
     
-    # Patterns to remove from description
-    remove_patterns = [
-        'requirements', 'qualifications', 'you should have', 'you have',
-        'minimum qualifications', 'preferred qualifications', 'required skills',
-        'years of experience', 'experience in', 'proficiency in', 'knowledge of',
-        'strong', 'excellent', 'ability to', 'must have', 'should have',
-        'benefits', 'what we offer', 'perks', 'compensation', 'package',
-        'healthcare benefits', 'additional benefits', 'retirement savings plan',
-        'income protection', 'generous time off', 'family planning',
-        'mental health resources', 'professional development',
-        'us salary range', 'salary range', 'us roles', 'uk & aus roles',
-        'ie roles', 'traditional 401k', 'roth', 'pension plan', 'superannuation plan'
+    # Specific section headers to remove
+    section_headers_to_remove = [
+        'REQUIRED QUALIFICATIONS', 'PREFERRED QUALIFICATIONS', 'QUALIFICATIONS',
+        'US Salary Range', 'Salary Range', 'Healthcare Benefits', 'Additional Benefits',
+        'Benefits', 'What We Offer', 'Perks', 'Compensation', 'Package',
+        'Retirement Savings Plan', 'Income Protection', 'Generous time off',
+        'Family Planning', 'Mental Health Resources', 'Professional Development',
+        'Commuter Benefits', 'Relocation Assistance'
     ]
     
     in_removable_section = False
@@ -1621,8 +1617,8 @@ def clean_job_description(description, sections):
             
         line_lower = line_clean.lower()
         
-        # Check if this line starts a removable section
-        if any(pattern in line_lower for pattern in remove_patterns):
+        # Check if this line is a section header we want to remove
+        if any(header.lower() in line_lower for header in section_headers_to_remove):
             in_removable_section = True
             continue
         
@@ -1632,11 +1628,12 @@ def clean_job_description(description, sections):
             if any(phrase in line_lower for phrase in [
                 'about the job', 'the opportunity', 'about this role',
                 'what you\'ll do', 'responsibilities', 'duties',
-                'create a job alert', 'apply for this job', 'back to jobs'
+                'create a job alert', 'apply for this job', 'back to jobs',
+                'voluntary self-identification', 'equal employment opportunity'
             ]):
                 in_removable_section = False
                 # Add this line as it might be the start of a new section
-                if not any(pattern in line_lower for pattern in remove_patterns):
+                if not any(header.lower() in line_lower for header in section_headers_to_remove):
                     cleaned_lines.append(line_clean)
             continue
         
@@ -2105,12 +2102,16 @@ async def extract_greenhouse_job(page, job_data):
             full_content = None
         
         if full_content:
-            job_data['description'] = full_content[:10000]
-            print(f"Greenhouse: Extracted {len(full_content)} characters of content (filtered)")
-            
             # Parse sections from content with enhanced Greenhouse-specific parsing
             sections = await parse_greenhouse_sections(full_content)
+            
+            # Clean the description by removing content that's now in separate sections
+            cleaned_description = clean_job_description(full_content, sections)
+            job_data['description'] = cleaned_description[:10000]
+            
             job_data.update(sections)
+            print(f"Greenhouse: Extracted {len(full_content)} characters of content (filtered)")
+            print(f"Greenhouse: Cleaned description to {len(cleaned_description)} characters")
             print(f"Greenhouse: Parsed sections: {list(sections.keys())}")
             
             # Enhanced work environment extraction

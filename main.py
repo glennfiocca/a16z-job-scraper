@@ -1512,7 +1512,12 @@ async def extract_greenhouse_salary(page, content):
                 r'\$([\d,]+)\s*[-–—]\s*\$([\d,]+)',
                 r'\$([\d,]+)\s*to\s*\$([\d,]+)',
                 r'Salary Range\s*\$([\d,]+)\s*[-–—]\s*\$([\d,]+)',
-                r'Compensation\s*\$([\d,]+)\s*[-–—]\s*\$([\d,]+)'
+                r'Compensation\s*\$([\d,]+)\s*[-–—]\s*\$([\d,]+)',
+                # Enhanced patterns for Anduril-style listings
+                r'US Salary Range\s*\$([\d,]+)\s*[-–—]\s*\$([\d,]+)\s*USD',
+                r'Salary Range\s*\$([\d,]+)\s*[-–—]\s*\$([\d,]+)\s*USD',
+                r'\$([\d,]+)\s*[-–—]\s*\$([\d,]+)\s*USD',
+                r'\$([\d,]+)\s*to\s*\$([\d,]+)\s*USD'
             ]
             
             for pattern in salary_patterns:
@@ -1560,6 +1565,86 @@ async def extract_greenhouse_salary(page, content):
     
     return None
 
+def is_benefits_section_header(line):
+    """Check if a line is a proper benefits section header"""
+    line_lower = line.lower()
+    benefit_headers = [
+        'benefits', 'what we offer', 'perks', 'compensation', 'package',
+        'healthcare benefits', 'additional benefits', 'retirement savings plan',
+        'income protection', 'generous time off', 'family planning',
+        'mental health resources', 'professional development',
+        'comprehensive benefits', 'benefits package',
+        'what you can expect', 'compensation and benefits', 'total rewards',
+        'employee benefits', 'company benefits', 'work benefits'
+    ]
+    
+    # Exclude salary-related lines that shouldn't trigger benefits section
+    salary_indicators = [
+        'us salary range', 'salary range', 'annual base salary range',
+        'pay transparency disclosure', 'in addition to salary'
+    ]
+    
+    # Only trigger if it's a benefits header AND not a salary-related line
+    has_benefit_header = any(header in line_lower for header in benefit_headers)
+    is_salary_line = any(indicator in line_lower for indicator in salary_indicators)
+    
+    return has_benefit_header and not is_salary_line
+
+def clean_job_description(description, sections):
+    """Clean job description by removing content that's now in separate sections"""
+    if not description:
+        return description
+    
+    lines = description.split('\n')
+    cleaned_lines = []
+    
+    # Patterns to remove from description
+    remove_patterns = [
+        'requirements', 'qualifications', 'you should have', 'you have',
+        'minimum qualifications', 'preferred qualifications', 'required skills',
+        'years of experience', 'experience in', 'proficiency in', 'knowledge of',
+        'strong', 'excellent', 'ability to', 'must have', 'should have',
+        'benefits', 'what we offer', 'perks', 'compensation', 'package',
+        'healthcare benefits', 'additional benefits', 'retirement savings plan',
+        'income protection', 'generous time off', 'family planning',
+        'mental health resources', 'professional development',
+        'us salary range', 'salary range', 'us roles', 'uk & aus roles',
+        'ie roles', 'traditional 401k', 'roth', 'pension plan', 'superannuation plan'
+    ]
+    
+    in_removable_section = False
+    
+    for line in lines:
+        line_clean = line.strip()
+        if not line_clean:
+            continue
+            
+        line_lower = line_clean.lower()
+        
+        # Check if this line starts a removable section
+        if any(pattern in line_lower for pattern in remove_patterns):
+            in_removable_section = True
+            continue
+        
+        # Check if we should stop removing content
+        if in_removable_section:
+            # Stop if we hit a new major section or end of content
+            if any(phrase in line_lower for phrase in [
+                'about the job', 'the opportunity', 'about this role',
+                'what you\'ll do', 'responsibilities', 'duties',
+                'create a job alert', 'apply for this job', 'back to jobs'
+            ]):
+                in_removable_section = False
+                # Add this line as it might be the start of a new section
+                if not any(pattern in line_lower for pattern in remove_patterns):
+                    cleaned_lines.append(line_clean)
+            continue
+        
+        # Add lines that are not in removable sections
+        cleaned_lines.append(line_clean)
+    
+    return '\n'.join(cleaned_lines)
+
 async def parse_greenhouse_sections(content):
     """Parse Greenhouse job content to extract structured sections"""
     sections = {}
@@ -1594,14 +1679,17 @@ async def parse_greenhouse_sections(content):
                 '8+ years', '5+ years', '3+ years', '2+ years', '1+ years'
             ],
             'benefits': [
-                'benefits', 'what we offer', 'perks', 'compensation', 'package',
+                'benefits', 'what we offer', 'perks', 'package',
                 'healthcare benefits', 'additional benefits', 'retirement savings plan',
                 'income protection', 'generous time off', 'family planning',
                 'mental health resources', 'professional development',
-                'pay transparency disclosure', 'annual base salary range',
-                'in addition to salary', 'comprehensive benefits', 'benefits package',
+                'comprehensive benefits', 'benefits package',
                 'what you can expect', 'compensation and benefits', 'total rewards',
-                'employee benefits', 'company benefits', 'work benefits'
+                'employee benefits', 'company benefits', 'work benefits',
+                'us roles', 'uk & aus roles', 'ie roles', 'traditional 401k', 'roth', 
+                'pension plan', 'superannuation plan', 'healthcare benefits', 'dental', 
+                'vision plans', 'caregiver & wellness leave', 'family planning & parenting support',
+                'commuter benefits', 'relocation assistance'
             ],
             'work_environment': [
                 'remote work', 'work remotely', 'work from home', 'wfh', 'fully remote',
@@ -1650,8 +1738,37 @@ async def parse_greenhouse_sections(content):
                     'read our privacy policy', 'don\'t check off every box',
                     'studies have shown that some of us', 'waymark is dedicated to building',
                     'you may be just the right candidate', 'interested in building your career',
-                    'get future opportunities sent straight to your email'
+                    'get future opportunities sent straight to your email',
+                    'public burden statement', 'paperwork reduction act', 'omb control number',
+                    'expires', 'survey should take', 'minutes to complete'
                 ]
+                
+                # Special handling for different sections
+                if current_section == 'benefits':
+                    # For benefits section, stop at application forms or other major sections
+                    if any(phrase in line_lower for phrase in [
+                        'create a job alert', 'apply for this job', 'requirements',
+                        'qualifications', 'responsibilities', 'what you\'ll do',
+                        'back to jobs', 'apply', 'powered by', 'voluntary self-identification',
+                        'equal employment opportunity', 'public burden statement'
+                    ]):
+                        break
+                elif current_section == 'requirements':
+                    # For requirements section, stop at benefits or application forms
+                    if any(phrase in line_lower for phrase in [
+                        'benefits', 'what we offer', 'perks', 'compensation',
+                        'create a job alert', 'apply for this job', 'back to jobs',
+                        'apply', 'powered by', 'us salary range'
+                    ]):
+                        break
+                elif current_section == 'responsibilities':
+                    # For responsibilities section, stop at requirements or application forms
+                    if any(phrase in line_lower for phrase in [
+                        'requirements', 'qualifications', 'you should have',
+                        'create a job alert', 'apply for this job', 'back to jobs',
+                        'apply', 'powered by'
+                    ]):
+                        break
                 
                 if not any(indicator in line_lower for indicator in skip_indicators):
                     section_content.append(line_clean)
@@ -1660,15 +1777,23 @@ async def parse_greenhouse_sections(content):
         if current_section and section_content:
             sections[current_section] = '\n'.join(section_content)[:2000]
         
-        # Post-process to extract benefits from compensation sections if not already found
-        if 'benefits' not in sections:
+        # Clean the description by removing content that's now in separate sections
+        if 'description' in sections:
+            sections['description'] = clean_job_description(sections['description'], sections)
+        
+        # Post-process to extract benefits from compensation sections if not already found or if benefits section is too short
+        if 'benefits' not in sections or len(sections.get('benefits', '')) < 100:
             content_lower = content.lower()
             benefits_indicators = [
                 'offers equity', 'health insurance', 'dental', 'vision', 'retirement',
                 '401k', 'pto', 'vacation', 'parental leave', 'wellness benefits',
                 'mental health', 'generous pto', 'company holidays', 'work-life balance',
                 'flexible pto', 'stock options', 'equity', 'benefits package',
-                'comprehensive benefits', 'total rewards', 'additional benefits'
+                'comprehensive benefits', 'total rewards', 'additional benefits',
+                'us salary range', 'salary range', 'us roles', 'uk & aus roles',
+                'ie roles', 'traditional 401k', 'roth', 'pension plan', 'superannuation plan',
+                'healthcare benefits', 'income protection', 'family planning',
+                'professional development', 'commuter benefits', 'relocation assistance'
             ]
             
             # Look for benefits content in the full text
@@ -1683,15 +1808,31 @@ async def parse_greenhouse_sections(content):
                     
                 line_lower = line_clean.lower()
                 
-                # Check if this line contains benefits indicators
-                if any(indicator in line_lower for indicator in benefits_indicators):
+                # Check if this line starts a benefits section
+                if any(phrase in line_lower for phrase in [
+                    'healthcare benefits', 'additional benefits', 'benefits & perks',
+                    'what we offer', 'perks', 'package',
+                    'retirement savings plan', 'income protection', 'generous time off',
+                    'family planning', 'mental health resources', 'professional development',
+                    'anduril offers top-tier benefits', 'comprehensive medical, dental, and vision',
+                    'income protection:', 'generous time off:', 'family planning & parenting support:',
+                    'mental health resources:', 'professional development:', 'commuter benefits:',
+                    'relocation assistance:', 'retirement savings plan'
+                ]) and not any(salary_phrase in line_lower for salary_phrase in [
+                    'salary range', 'us salary range', 'annual base salary range',
+                    'pay transparency disclosure', 'in addition to salary',
+                    'compensation factors', 'salary offer', 'base salary'
+                ]):
                     in_benefits_section = True
                     benefits_content.append(line_clean)
                 elif in_benefits_section and len(line_clean) > 20:  # Continue if we're in benefits section
                     # Stop if we hit application forms or other sections
                     if any(phrase in line_lower for phrase in [
                         'create a job alert', 'apply for this job', 'requirements',
-                        'qualifications', 'responsibilities', 'what you\'ll do'
+                        'qualifications', 'responsibilities', 'what you\'ll do',
+                        'voluntary self-identification', 'equal employment opportunity',
+                        'public burden statement', 'back to jobs', 'apply', 'powered by',
+                        'us salary range', 'salary range'
                     ]):
                         break
                     benefits_content.append(line_clean)

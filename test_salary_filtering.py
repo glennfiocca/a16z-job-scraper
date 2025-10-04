@@ -106,3 +106,4 @@ def test_salary_filtering():
 
 if __name__ == "__main__":
     test_salary_filtering()
+

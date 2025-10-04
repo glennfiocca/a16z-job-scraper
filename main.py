@@ -2236,7 +2236,7 @@ def save_job_to_db(job_data):
             return
         
         # Check if job already exists by URL
-        existing_job = Job.query.filter_by(url=job_data.get('url')).first()
+        existing_job = Job.query.filter_by(source_url=job_data.get('source_url')).first()
         if existing_job:
             # Smart update: only update if the job is incomplete or very old
             should_update = False

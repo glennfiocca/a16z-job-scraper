@@ -31,10 +31,10 @@ async def rescrape_missing_locations(limit=50, dry_run=True):
         
         # Find jobs with missing locations from Greenhouse
         missing_location_jobs = db.session.execute(db.text("""
-            SELECT id, url, company, title, location
+            SELECT id, source_url, company, title, location
             FROM jobs 
             WHERE (location IS NULL OR location = '' OR location = 'NULL')
-            AND url LIKE '%greenhouse%'
+            AND source_url LIKE '%greenhouse%'
             ORDER BY company, id
             LIMIT :limit
         """), {'limit': limit}).fetchall()

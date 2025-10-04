@@ -32,17 +32,17 @@ def analyze_data_gaps():
         print("-" * 40)
         
         ats_platforms = {
-            'Greenhouse': Job.query.filter(Job.url.like('%greenhouse%')).count(),
-            'Lever': Job.query.filter(Job.url.like('%lever%')).count(),
-            'Workday': Job.query.filter(Job.url.like('%workday%')).count(),
-            'Ashby': Job.query.filter(Job.url.like('%ashby%')).count(),
-            'Stripe': Job.query.filter(Job.url.like('%stripe%')).count(),
+            'Greenhouse': Job.query.filter(Job.source_url.like('%greenhouse%')).count(),
+            'Lever': Job.query.filter(Job.source_url.like('%lever%')).count(),
+            'Workday': Job.query.filter(Job.source_url.like('%workday%')).count(),
+            'Ashby': Job.query.filter(Job.source_url.like('%ashby%')).count(),
+            'Stripe': Job.query.filter(Job.source_url.like('%stripe%')).count(),
             'Other': Job.query.filter(
-                ~Job.url.like('%greenhouse%') & 
-                ~Job.url.like('%lever%') & 
-                ~Job.url.like('%workday%') & 
-                ~Job.url.like('%ashby%') & 
-                ~Job.url.like('%stripe%')
+                ~Job.source_url.like('%greenhouse%') & 
+                ~Job.source_url.like('%lever%') & 
+                ~Job.source_url.like('%workday%') & 
+                ~Job.source_url.like('%ashby%') & 
+                ~Job.source_url.like('%stripe%')
             ).count()
         }
         
@@ -56,11 +56,11 @@ def analyze_data_gaps():
         print("-" * 50)
         
         for platform, platform_filter in [
-            ('Greenhouse', Job.url.like('%greenhouse%')),
-            ('Lever', Job.url.like('%lever%')),
-            ('Workday', Job.url.like('%workday%')),
-            ('Ashby', Job.url.like('%ashby%')),
-            ('Stripe', Job.url.like('%stripe%'))
+            ('Greenhouse', Job.source_url.like('%greenhouse%')),
+            ('Lever', Job.source_url.like('%lever%')),
+            ('Workday', Job.source_url.like('%workday%')),
+            ('Ashby', Job.source_url.like('%ashby%')),
+            ('Stripe', Job.source_url.like('%stripe%'))
         ]:
             platform_jobs = Job.query.filter(platform_filter).count()
             if platform_jobs > 0:
@@ -168,11 +168,11 @@ def analyze_data_gaps():
         
         # Check for ATS platforms with >50% missing location
         for platform, platform_filter in [
-            ('Greenhouse', Job.url.like('%greenhouse%')),
-            ('Lever', Job.url.like('%lever%')),
-            ('Workday', Job.url.like('%workday%')),
-            ('Ashby', Job.url.like('%ashby%')),
-            ('Stripe', Job.url.like('%stripe%'))
+            ('Greenhouse', Job.source_url.like('%greenhouse%')),
+            ('Lever', Job.source_url.like('%lever%')),
+            ('Workday', Job.source_url.like('%workday%')),
+            ('Ashby', Job.source_url.like('%ashby%')),
+            ('Stripe', Job.source_url.like('%stripe%'))
         ]:
             platform_jobs = Job.query.filter(platform_filter).count()
             if platform_jobs > 100:  # Only check platforms with significant data

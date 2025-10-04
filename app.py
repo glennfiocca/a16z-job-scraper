@@ -42,6 +42,7 @@ def index():
     """Homepage with job listings"""
     page = request.args.get('page', 1, type=int)
     company_filter = request.args.get('company', '')
+    source_filter = request.args.get('source', '')
     search_query = request.args.get('search', '')
     
     with app.app_context():
@@ -51,6 +52,9 @@ def index():
         # Apply filters
         if company_filter:
             query = query.filter(Job.company.ilike(f'%{company_filter}%'))
+        
+        if source_filter:
+            query = query.filter(Job.source.ilike(f'%{source_filter}%'))
         
         if search_query:
             query = query.filter(
@@ -85,11 +89,22 @@ def index():
         else:
             companies = []
         
-        return render_template('index.html', 
+        # Get source list for filter dropdown
+        if total_jobs > 0:
+            sources = db.session.query(Job.source).filter(
+                Job.source.isnot(None), Job.title != 'Unknown Title'
+            ).distinct().order_by(Job.source).all()
+            sources = [s[0] for s in sources]
+        else:
+            sources = []
+        
+        return render_template('index.html',
                              jobs=jobs, 
                              stats=stats, 
                              companies=companies,
+                             sources=sources,
                              current_company=company_filter,
+                             current_source=source_filter,
                              current_search=search_query)
 
 @app.route('/job/<int:job_id>')
@@ -111,7 +126,7 @@ def api_jobs():
             'company': job.company,
             'location': job.location,
             'employment_type': job.employment_type,
-            'url': job.source_url,
+            'source_url': job.source_url,
             'posted_date': job.posted_date,
             'scraped_at': job.scraped_at.isoformat() if job.scraped_at else None
         } for job in jobs] if jobs else [])

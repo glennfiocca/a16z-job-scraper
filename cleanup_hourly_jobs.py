@@ -67,7 +67,7 @@ def cleanup_hourly_jobs(dry_run=True):
         for i, job in enumerate(hourly_jobs[:10], 1):
             print(f"   {i:2d}. {job.title} at {job.company}")
             print(f"       Salary: {job.salary_range[:80]}{'...' if len(job.salary_range) > 80 else ''}")
-            print(f"       URL: {job.url}")
+            print(f"       URL: {job.source_url}")
             print()
         
         if len(hourly_jobs) > 10:

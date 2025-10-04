@@ -1402,6 +1402,176 @@ async def extract_fivetran_job(page, job_data):
     
     return job_data
 
+async def extract_greenhouse_salary(page, content):
+    """Extract salary information from Greenhouse job posting"""
+    salary_info = {}
+    
+    try:
+        # First, try to find salary in dedicated sections
+        salary_selectors = [
+            '.salary', 
+            '.compensation', 
+            '.pay-range',
+            '[class*="salary"]',
+            '[class*="compensation"]',
+            '[class*="pay"]'
+        ]
+        
+        salary_text = await get_text_by_selectors(page, salary_selectors)
+        
+        # If not found in dedicated selectors, search in content
+        if not salary_text and content:
+            # Look for salary patterns in the content
+            import re
+            salary_patterns = [
+                r'US Salary Range[:\s]*\$?([\d,]+)\s*[-–—]\s*\$?([\d,]+)\s*USD?',
+                r'Annual Base Salary Range[:\s]*\$?([\d,]+)\s*[-–—]\s*\$?([\d,]+)\s*USD?',
+                r'Salary Range[:\s]*\$?([\d,]+)\s*[-–—]\s*\$?([\d,]+)\s*USD?',
+                r'Compensation[:\s]*\$?([\d,]+)\s*[-–—]\s*\$?([\d,]+)\s*USD?',
+                r'Pay Range[:\s]*\$?([\d,]+)\s*[-–—]\s*\$?([\d,]+)\s*USD?',
+                r'\$?([\d,]+)\s*[-–—]\s*\$?([\d,]+)\s*USD?(?=\s|$)',
+                r'\$?([\d,]+)K\s*[-–—]\s*\$?([\d,]+)K\s*USD?',
+                r'\$?([\d,]+)\s*to\s*\$?([\d,]+)\s*USD?',
+                r'\$?([\d,]+)K\s*to\s*\$?([\d,]+)K\s*USD?'
+            ]
+            
+            for pattern in salary_patterns:
+                match = re.search(pattern, content, re.IGNORECASE)
+                if match:
+                    min_salary = match.group(1).replace(',', '')
+                    max_salary = match.group(2).replace(',', '')
+                    
+                    # Handle K notation
+                    if 'K' in match.group(0).upper():
+                        min_salary = str(int(min_salary) * 1000)
+                        max_salary = str(int(max_salary) * 1000)
+                    
+                    salary_info['salary_range'] = f"${min_salary} - ${max_salary}"
+                    salary_info['salary_min'] = int(min_salary)
+                    salary_info['salary_max'] = int(max_salary)
+                    return salary_info
+        
+        # If found in dedicated selectors, parse it
+        if salary_text:
+            parsed_salary = parse_salary_range(salary_text)
+            if parsed_salary and parsed_salary != "Not provided":
+                salary_info['salary_range'] = parsed_salary
+                
+                # Extract min/max from parsed salary
+                if ' - ' in parsed_salary:
+                    parts = parsed_salary.split(' - ')
+                    if len(parts) == 2:
+                        try:
+                            salary_info['salary_min'] = int(parts[0].replace('$', '').replace(',', ''))
+                            salary_info['salary_max'] = int(parts[1].replace('$', '').replace(',', ''))
+                        except ValueError:
+                            pass
+                else:
+                    try:
+                        salary_info['salary_min'] = int(parsed_salary.replace('$', '').replace(',', ''))
+                        salary_info['salary_max'] = None
+                    except ValueError:
+                        pass
+                
+                return salary_info
+    
+    except Exception as e:
+        print(f"Error extracting Greenhouse salary: {e}")
+    
+    return None
+
+async def parse_greenhouse_sections(content):
+    """Parse Greenhouse job content to extract structured sections"""
+    sections = {}
+    
+    try:
+        # Split content into lines for easier parsing
+        lines = content.split('\n')
+        current_section = None
+        section_content = []
+        
+        # Greenhouse-specific section headers
+        section_headers = {
+            'responsibilities': [
+                'what you\'ll do', 'what you will do', 'you will', 'responsibilities', 
+                'duties', 'key responsibilities', 'role description', 'what you do',
+                'about the job', 'the opportunity'
+            ],
+            'requirements': [
+                'required qualifications', 'requirements', 'you should have', 
+                'you have', 'qualifications', 'required skills', 'minimum qualifications',
+                'preferred qualifications', 'nice to have', 'bonus points',
+                'we\'d love to hear from you if you have'
+            ],
+            'benefits': [
+                'benefits', 'what we offer', 'perks', 'compensation', 'package',
+                'healthcare benefits', 'additional benefits', 'retirement savings plan',
+                'income protection', 'generous time off', 'family planning',
+                'mental health resources', 'professional development',
+                'pay transparency disclosure', 'annual base salary range'
+            ],
+            'work_environment': [
+                'remote', 'hybrid', 'onsite', 'on-site', 'location', 'work from',
+                'this is a full time role', 'this role can be held', 'work style',
+                'this is a full time role that can be held'
+            ]
+        }
+        
+        for line in lines:
+            line_clean = line.strip()
+            if not line_clean:
+                continue
+                
+            # Check if this line is a section header
+            line_lower = line_clean.lower()
+            found_section = None
+            
+            for section_key, keywords in section_headers.items():
+                if any(keyword in line_lower for keyword in keywords):
+                    # Save previous section
+                    if current_section and section_content:
+                        sections[current_section] = '\n'.join(section_content)[:2000]
+                    
+                    current_section = section_key
+                    section_content = []
+                    found_section = True
+                    break
+            
+            if not found_section and current_section:
+                # Skip lines that are clearly not part of the current section
+                skip_indicators = [
+                    'create a job alert', 'create alert', 'apply for this job',
+                    'indicates a required field', 'autofill with', 'first name',
+                    'last name', 'email', 'phone', 'resume', 'cover letter',
+                    'linkedin profile', 'website', 'portfolio', 'github',
+                    'submit application', 'privacy policy', 'candidate data privacy',
+                    'applicant-privacy-notice', 'voluntary self-identification',
+                    'equal employment opportunity', 'global data privacy notice',
+                    'commitment to equal opportunity', 'by applying for this job'
+                ]
+                
+                if not any(indicator in line_lower for indicator in skip_indicators):
+                    section_content.append(line_clean)
+        
+        # Save the last section
+        if current_section and section_content:
+            sections[current_section] = '\n'.join(section_content)[:2000]
+        
+        # Special handling for work environment
+        if 'work_environment' not in sections:
+            content_lower = content.lower()
+            if 'remote' in content_lower and 'united states' in content_lower:
+                sections['work_environment'] = 'Remote'
+            elif 'hybrid' in content_lower:
+                sections['work_environment'] = 'Hybrid'
+            elif 'onsite' in content_lower or 'on-site' in content_lower:
+                sections['work_environment'] = 'Onsite'
+        
+    except Exception as e:
+        print(f"Error parsing Greenhouse sections: {e}")
+    
+    return sections
+
 async def extract_greenhouse_job(page, job_data):
     """Extract comprehensive job details from Greenhouse ATS"""
     try:
@@ -1419,20 +1589,55 @@ async def extract_greenhouse_job(page, job_data):
         elif not job_data.get('company') or job_data.get('company') == "Unknown Company":
             job_data['company'] = extract_company_from_url(job_data['source_url'])
         
-        # Location - Updated selectors for Greenhouse
-        location_selectors = ['.job__location', '[class*="location"]', '.location', '[data-mapped="location"]', '.job-location']
+        # Location - Enhanced selectors for Greenhouse
+        location_selectors = [
+            '.job__location', 
+            '[class*="location"]', 
+            '.location', 
+            '[data-mapped="location"]', 
+            '.job-location',
+            '.job-location-info',
+            '.office-location',
+            '.work-location'
+        ]
         location = await get_text_by_selectors(page, location_selectors)
         if location:
             # Parse locations to separate primary from alternates
             primary_location, alternate_locations = parse_locations(location)
             job_data['location'] = primary_location
             job_data['alternate_locations'] = alternate_locations
+        else:
+            # Fallback: look for location in the main content
+            location_fallback = await page.evaluate('''
+                () => {
+                    const text = document.body.innerText;
+                    const locationMatch = text.match(/([A-Za-z\\s,]+(?:California|New York|Texas|Florida|Washington|Illinois|Pennsylvania|Ohio|Georgia|North Carolina|Virginia|Massachusetts|Michigan|New Jersey|Arizona|Tennessee|Indiana|Missouri|Maryland|Wisconsin|Colorado|Minnesota|South Carolina|Alabama|Louisiana|Kentucky|Oregon|Oklahoma|Connecticut|Utah|Iowa|Nevada|Arkansas|Mississippi|Kansas|New Mexico|Nebraska|West Virginia|Idaho|Hawaii|New Hampshire|Maine|Montana|Rhode Island|Delaware|South Dakota|North Dakota|Alaska|Vermont|Wyoming|United States|Remote|Hybrid|Onsite|On-site|Work from home|WFH)\\s*[\\n\\r]/);
+                    return locationMatch ? locationMatch[1].trim() : null;
+                }
+            ''')
+            if location_fallback:
+                primary_location, alternate_locations = parse_locations(location_fallback)
+                job_data['location'] = primary_location
+                job_data['alternate_locations'] = alternate_locations
         
-        # Employment type
+        # Employment type - Enhanced detection
         type_selectors = ['.employment-type', '[data-mapped="employment_type"]']
         emp_type = await get_text_by_selectors(page, type_selectors)
         if emp_type:
             job_data['employment_type'] = emp_type
+        else:
+            # Fallback: infer from content
+            emp_type_fallback = await page.evaluate('''
+                () => {
+                    const text = document.body.innerText.toLowerCase();
+                    if (text.includes('full time') || text.includes('full-time')) return 'Full time';
+                    if (text.includes('part time') || text.includes('part-time')) return 'Part time';
+                    if (text.includes('contract')) return 'Contract';
+                    if (text.includes('internship')) return 'Internship';
+                    return 'Full time'; // Default assumption
+                }
+            ''')
+            job_data['employment_type'] = emp_type_fallback
         
         # Extract detailed content - stop at "Create a Job Alert" section
         full_content = await page.evaluate('''
@@ -1512,13 +1717,12 @@ async def extract_greenhouse_job(page, job_data):
             job_data['description'] = full_content[:10000]
             print(f"Greenhouse: Extracted {len(full_content)} characters of content (filtered)")
             
-            # Parse sections from content
-            sections = await parse_job_sections(full_content)
+            # Parse sections from content with enhanced Greenhouse-specific parsing
+            sections = await parse_greenhouse_sections(full_content)
             job_data.update(sections)
             print(f"Greenhouse: Parsed sections: {list(sections.keys())}")
         else:
             print("Greenhouse: No substantial content found after filtering")
-        
         
         # Posted date
         date_selectors = ['.posted-date', '.publication-date']
@@ -1526,15 +1730,14 @@ async def extract_greenhouse_job(page, job_data):
         if posted_date:
             job_data['posted_date'] = posted_date
         
-        # Salary/compensation (often in content)
-        salary_selectors = ['.salary', '.compensation', '.pay-range']
-        salary = await get_text_by_selectors(page, salary_selectors)
-        if salary:
-            # Parse and clean the salary text
-            job_data['salary_range'] = parse_salary_range(salary)
+        # Enhanced salary extraction - look in multiple places
+        salary_info = await extract_greenhouse_salary(page, full_content)
+        if salary_info:
+            job_data.update(salary_info)
         else:
-            # Set default message when no salary is found
             job_data['salary_range'] = "Not provided"
+            job_data['salary_min'] = None
+            job_data['salary_max'] = None
             
     except Exception as e:
         print(f"Error parsing Greenhouse job: {e}")

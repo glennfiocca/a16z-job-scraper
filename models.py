@@ -27,7 +27,7 @@ class Job(db.Model):
     salary_max = db.Column(db.Integer, nullable=True)
     experience_level = db.Column(db.String(100), nullable=True)
     work_environment = db.Column(db.Text, nullable=True)
-    url = db.Column(db.String(500), nullable=True)
+    source_url = db.Column(db.String(500), nullable=True)
     posted_date = db.Column(db.String(100), nullable=True)
     source = db.Column(db.Text, nullable=True)
     scraped_at = db.Column(db.DateTime, default=datetime.utcnow)

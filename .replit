@@ -29,22 +29,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "A16Z Jobs Scraper"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "Jobs Dashboard"
-
-[[workflows.workflow]]
-name = "A16Z Jobs Scraper"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python main.py"
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [[workflows.workflow]]
 name = "Jobs Dashboard"
@@ -65,3 +50,7 @@ externalPort = 80
 [[ports]]
 localPort = 33097
 externalPort = 3000
+
+[[ports]]
+localPort = 35203
+externalPort = 3001

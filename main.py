@@ -718,7 +718,7 @@ async def wait_for_provider_elements(page, job_url):
 async def extract_job_details_advanced(page, job_url, company_name):
     """Extract job details with provider-specific parsing"""
     job_data = {
-        'url': job_url,
+        'source_url': job_url,
         'company': company_name,
         'source': extract_source_from_url(job_url)
     }
@@ -1417,7 +1417,7 @@ async def extract_greenhouse_job(page, job_data):
         if company:
             job_data['company'] = company
         elif not job_data.get('company') or job_data.get('company') == "Unknown Company":
-            job_data['company'] = extract_company_from_url(job_data['url'])
+            job_data['company'] = extract_company_from_url(job_data['source_url'])
         
         # Location - Updated selectors for Greenhouse
         location_selectors = ['.job__location', '[class*="location"]', '.location', '[data-mapped="location"]', '.job-location']
@@ -1552,7 +1552,7 @@ async def extract_lever_job(page, job_data):
         
         # Company (extract from URL if not found on page)
         if not job_data.get('company') or job_data.get('company') == "Unknown Company":
-            job_data['company'] = extract_company_from_url(job_data['url'])
+            job_data['company'] = extract_company_from_url(job_data['source_url'])
         
         # Location
         location_selectors = ['.posting-categories .location', '.location']
@@ -1638,7 +1638,7 @@ async def extract_ashby_job(page, job_data):
         
         # Company (extract from URL if not found on page)
         if not job_data.get('company') or job_data.get('company') == "Unknown Company":
-            job_data['company'] = extract_company_from_url(job_data['url'])
+            job_data['company'] = extract_company_from_url(job_data['source_url'])
         
         # Location - use more precise text-based search for Ashby's current structure
         try:
@@ -2331,7 +2331,7 @@ def save_job_to_db(job_data):
             salary_max=job_data.get('salary_max'),
             experience_level=job_data.get('experience_level'),
             work_environment=job_data.get('work_environment'),
-            url=job_data.get('url'),
+            source_url=job_data.get('source_url'),
             posted_date=job_data.get('posted_date'),
             source=job_data.get('source'),
             scraped_at=datetime.utcnow()

@@ -111,7 +111,7 @@ def api_jobs():
             'company': job.company,
             'location': job.location,
             'employment_type': job.employment_type,
-            'url': job.url,
+            'url': job.source_url,
             'posted_date': job.posted_date,
             'scraped_at': job.scraped_at.isoformat() if job.scraped_at else None
         } for job in jobs] if jobs else [])

@@ -87,7 +87,7 @@ async def extract_stripe_job(page, job_data):
         
         # Job ID from URL - Stripe URLs have job IDs at the end
         try:
-            url_parts = job_data['url'].split('/')
+            url_parts = job_data['source_url'].split('/')
             if len(url_parts) > 1:
                 job_data['job_id'] = url_parts[-1].split('?')[0]
         except:

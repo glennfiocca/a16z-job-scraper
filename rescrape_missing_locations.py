@@ -66,16 +66,16 @@ async def rescrape_missing_locations(limit=50, dry_run=True):
                     page = await browser.new_page()
                     
                     # Navigate to the job URL
-                    await page.goto(job.url, timeout=30000)
+                    await page.goto(job.source_url, timeout=30000)
                     await page.wait_for_load_state('networkidle', timeout=10000)
                     
                     # Extract job data using the fixed Greenhouse extraction
-                    job_data = {'url': job.url, 'company': job.company}
+                    job_data = {'source_url': job.source_url, 'company': job.company}
                     
-                    if 'greenhouse' in job.url.lower():
+                    if 'greenhouse' in job.source_url.lower():
                         result = await extract_greenhouse_job(page, job_data)
                     else:
-                        result = await extract_job_details_advanced(page, job.url, job.company)
+                        result = await extract_job_details_advanced(page, job.source_url, job.company)
                     
                     # Check if we got a location
                     new_location = result.get('location')
@@ -110,7 +110,7 @@ async def rescrape_missing_locations(limit=50, dry_run=True):
                     await asyncio.sleep(1)
                     
                 except Exception as e:
-                    print(f"   ❌ Error processing {job.url}: {e}")
+                    print(f"   ❌ Error processing {job.source_url}: {e}")
                     error_count += 1
                     
                     try:

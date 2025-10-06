@@ -58,7 +58,11 @@ Rules:
             )
             
             # Parse the JSON response
-            result = json.loads(response.choices[0].message.content)
+            content = response.choices[0].message.content
+            if not content:
+                raise ValueError("Empty response from AI")
+            
+            result = json.loads(content)
             
             # Validate required fields
             if not result.get('title') or not result.get('company'):

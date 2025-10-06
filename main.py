@@ -3032,6 +3032,13 @@ def save_job_to_db(job_data):
             print(f"🌍 Skipping international job: {job_data.get('title', 'Unknown Title')} at {job_data.get('company', 'Unknown')} (location: {location})")
             return
         
+        # Skip jobs from Andreessen Horowitz itself (the VC firm - we want portfolio companies only)
+        company_name = job_data.get('company', '').lower()
+        a16z_variations = ['andreessen horowitz', 'andreesen horowitz', 'a16z', 'a16 z', 'horowitz']
+        if any(variation in company_name for variation in a16z_variations):
+            print(f"🏢 Skipping Andreessen Horowitz job (VC firm itself): {job_data.get('title', 'Unknown Title')}")
+            return
+        
         # Check if job already exists by URL
         existing_job = Job.query.filter_by(source_url=job_data.get('source_url')).first()
         if existing_job:

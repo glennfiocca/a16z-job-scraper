@@ -67,7 +67,7 @@ def index():
         if search_query:
             query = query.filter(
                 Job.title.ilike(f'%{search_query}%') |
-                Job.description.ilike(f'%{search_query}%') |
+                Job.about_job.ilike(f'%{search_query}%') |
                 Job.company.ilike(f'%{search_query}%')
             )
         
@@ -162,7 +162,7 @@ def load_more_jobs():
         if search_query:
             query = query.filter(
                 Job.title.ilike(f'%{search_query}%') |
-                Job.description.ilike(f'%{search_query}%') |
+                Job.about_job.ilike(f'%{search_query}%') |
                 Job.company.ilike(f'%{search_query}%')
             )
         
@@ -181,7 +181,7 @@ def load_more_jobs():
                 'location': job.location,
                 'employment_type': job.employment_type,
                 'source': job.source,
-                'description': job.description[:200] + '...' if job.description and len(job.description) > 200 else job.description,
+                'about_job': job.about_job[:200] + '...' if job.about_job and len(job.about_job) > 200 else job.about_job,
                 'source_url': job.source_url,
                 'scraped_at': job.scraped_at.isoformat() if job.scraped_at else None,
                 'scraped_at_formatted': job.scraped_at.strftime('%b %d') if job.scraped_at else None

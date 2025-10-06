@@ -27,7 +27,8 @@ Raw Content: {truncated_content}
 Extract and return ONLY a JSON object with these exact fields:
 {{
     "title": "Job title (clean, no extra text)",
-    "company": "Company name (clean, no extra text)", 
+    "company": "Company name (clean, no extra text)",
+    "about_company": "Copy the VERBATIM text about the company from the listing - company description, mission, what they do, their story, etc. This is usually in an 'About Us' or 'About the Company' section. Do not summarize.", 
     "location": "Primary location (city, state/country)",
     "alternate_locations": "Other locations as comma-separated string (or null if none)",
     "employment_type": "Full-time, Part-time, Contract, Internship, etc.",
@@ -86,6 +87,7 @@ CRITICAL EXTRACTION RULES - VERBATIM TEXT ONLY:
         return {
             "title": None,
             "company": None,
+            "about_company": None,
             "location": None,
             "alternate_locations": None,
             "employment_type": None,

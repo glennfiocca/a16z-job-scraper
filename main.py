@@ -2806,6 +2806,7 @@ async def parse_job_sections(content):
         
         # Common section headers to look for
         section_headers = {
+            'about_company': ['about us', 'about the company', 'about', 'who we are', 'our company', 'our mission', 'company overview', 'our story'],
             'requirements': ['requirements', 'qualifications', 'what you need', 'you have', 'required skills', 'minimum qualifications'],
             'responsibilities': ['responsibilities', 'what you\'ll do', 'you will', 'duties', 'role description', 'job description'],
             'benefits': ['benefits', 'what we offer', 'perks', 'compensation', 'package'],
@@ -3066,6 +3067,7 @@ def save_job_to_db(job_data):
                 # Update all fields with new data
                 existing_job.title = job_data.get('title', existing_job.title)
                 existing_job.company = job_data.get('company', existing_job.company)
+                existing_job.about_company = job_data.get('about_company', existing_job.about_company)
                 existing_job.location = job_data.get('location', existing_job.location)
                 existing_job.alternate_locations = job_data.get('alternate_locations', existing_job.alternate_locations)
                 existing_job.employment_type = job_data.get('employment_type', existing_job.employment_type)
@@ -3115,6 +3117,7 @@ def save_job_to_db(job_data):
         job = Job(
             title=job_data.get('title'),
             company=job_data.get('company'),
+            about_company=job_data.get('about_company'),
             location=job_data.get('location'),
             alternate_locations=job_data.get('alternate_locations'),
             employment_type=job_data.get('employment_type'),

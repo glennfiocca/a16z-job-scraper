@@ -59,6 +59,38 @@
         </div>
     </div>
 
+    <!-- AI Tracking Panel (shown during scraping) -->
+    <div id="ai-tracking-panel" class="mb-6 hidden">
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+            <div class="flex items-center mb-4">
+                <i class="fas fa-robot text-blue-600 text-2xl mr-3"></i>
+                <h3 class="text-lg font-semibold text-gray-900">AI Parsing Metrics</h3>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="bg-white rounded-lg p-4 shadow-sm">
+                    <div class="text-sm text-gray-600 mb-1">AI Calls</div>
+                    <div id="ai-calls" class="text-2xl font-bold text-blue-600">0</div>
+                </div>
+                <div class="bg-white rounded-lg p-4 shadow-sm">
+                    <div class="text-sm text-gray-600 mb-1">Success Rate</div>
+                    <div id="ai-success-rate" class="text-2xl font-bold text-green-600">0%</div>
+                </div>
+                <div class="bg-white rounded-lg p-4 shadow-sm">
+                    <div class="text-sm text-gray-600 mb-1">Manual Fallbacks</div>
+                    <div id="manual-fallbacks" class="text-2xl font-bold text-orange-600">0</div>
+                </div>
+                <div class="bg-white rounded-lg p-4 shadow-sm">
+                    <div class="text-sm text-gray-600 mb-1">Estimated Cost</div>
+                    <div id="estimated-cost" class="text-2xl font-bold text-purple-600">$0.00</div>
+                </div>
+            </div>
+            <div class="mt-4 text-xs text-gray-600">
+                <i class="fas fa-info-circle mr-1"></i>
+                Real-time AI parsing metrics. AI extracts structured data from job postings, falling back to manual parsing only when needed.
+            </div>
+        </div>
+    </div>
+
     <!-- Search and Filters -->
     <div class="mb-6">
         <div class="bg-white shadow rounded-lg p-4">
@@ -520,7 +552,11 @@ function resetButton() {
 }
 
 function startStatusPolling() {
-    // Poll for status updates every 10 seconds
+    // Show AI tracking panel
+    const aiPanel = document.getElementById('ai-tracking-panel');
+    aiPanel.classList.remove('hidden');
+    
+    // Poll for status updates every 3 seconds
     scrapingInterval = setInterval(async () => {
         try {
             const response = await fetch('/scrape-status');
@@ -529,7 +565,22 @@ function startStatusPolling() {
             if (status.is_running) {
                 // Update status message with progress
                 const statusText = document.getElementById('status-text');
-                statusText.textContent = `Scraping in progress... ${status.message || ''}`;
+                let progressMsg = `Scraping in progress...`;
+                if (status.current_company) {
+                    progressMsg += ` Processing ${status.current_company} (${status.completed_companies}/${status.total_companies})`;
+                }
+                statusText.textContent = progressMsg;
+                
+                // Update AI tracking metrics
+                document.getElementById('ai-calls').textContent = status.ai_calls || 0;
+                document.getElementById('manual-fallbacks').textContent = status.manual_fallbacks || 0;
+                document.getElementById('estimated-cost').textContent = `$${(status.estimated_cost || 0).toFixed(4)}`;
+                
+                // Calculate and display success rate
+                const aiCalls = status.ai_calls || 0;
+                const aiSuccess = status.ai_success || 0;
+                const successRate = aiCalls > 0 ? Math.round((aiSuccess / aiCalls) * 100) : 0;
+                document.getElementById('ai-success-rate').textContent = `${successRate}%`;
             } else {
                 // Scraping completed
                 clearInterval(scrapingInterval);
@@ -547,15 +598,17 @@ function startStatusPolling() {
                 // Reset button
                 resetButton();
                 
-                // Auto-hide success message after 5 seconds
+                // Auto-hide success message and AI panel after 10 seconds
                 setTimeout(() => {
                     statusMessage.classList.add('hidden');
-                }, 5000);
+                    const aiPanel = document.getElementById('ai-tracking-panel');
+                    aiPanel.classList.add('hidden');
+                }, 10000);
             }
         } catch (error) {
             console.error('Error checking scrape status:', error);
         }
-    }, 10000);
+    }, 3000);
 }
 </script>
 {% endblock %}

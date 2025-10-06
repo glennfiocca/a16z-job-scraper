@@ -19,7 +19,7 @@ Preferred communication style: Simple, everyday language.
 - Uses a two-phase approach: URL collection followed by individual job processing
 - **AI-First Parsing**: Uses OpenAI GPT-3.5-turbo as the PRIMARY method to extract structured job data from raw HTML content
   - Extracts VERBATIM text from job listings (no summarization or paraphrasing)
-  - Extracts comprehensive fields: title, company, location, requirements, responsibilities, benefits, salary, experience level, work environment
+  - Extracts comprehensive fields: title, company, about_company, location, requirements, responsibilities, benefits, salary, experience level, work environment
   - Falls back to manual provider-specific parsing only if AI extraction fails
   - Tracks AI usage metrics: API calls, success rate, fallback frequency, and estimated cost per session
 - **US-Only Filter**: Automatically filters out international jobs, only saves US-based positions
@@ -29,7 +29,7 @@ Preferred communication style: Simple, everyday language.
 
 **Data Layer**
 - SQLAlchemy ORM with Flask integration for database operations
-- Job model storing comprehensive job posting information including title, company, location, employment type, description, requirements, and metadata
+- Job model storing comprehensive job posting information including title, company, about_company (company description/blurb), location, employment type, description, requirements, responsibilities, benefits, and metadata
 - Automatic timestamp tracking for scraping activities
 
 **Application Structure**

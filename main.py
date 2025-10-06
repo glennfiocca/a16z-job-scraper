@@ -715,8 +715,41 @@ async def wait_for_provider_elements(page, job_url):
     except Exception as e:
         print(f"Timeout waiting for elements on {job_url}: {e}")
 
+async def extract_raw_page_content(page):
+    """Extract raw text content from job page for AI parsing"""
+    try:
+        raw_content = await page.evaluate('''
+            () => {
+                // Remove navigation, footer, and other non-job content
+                const elementsToRemove = [
+                    'nav', 'header', 'footer', 
+                    '.navigation', '.nav', '.menu', 
+                    '.cookie-banner', '.cookie-notice',
+                    '[role="navigation"]', '[role="banner"]'
+                ];
+                
+                elementsToRemove.forEach(selector => {
+                    document.querySelectorAll(selector).forEach(el => el.remove());
+                });
+                
+                // Get main content area or body text
+                const mainContent = document.querySelector('main, article, .job-content, .job-description, #content, body');
+                
+                if (mainContent) {
+                    return mainContent.innerText.trim();
+                } else {
+                    return document.body.innerText.trim();
+                }
+            }
+        ''')
+        
+        return raw_content if raw_content else ""
+    except Exception as e:
+        print(f"Error extracting raw content: {e}")
+        return ""
+
 async def extract_job_details_advanced(page, job_url, company_name):
-    """Extract job details with provider-specific parsing"""
+    """Extract job details with AI-first parsing"""
     job_data = {
         'source_url': job_url,
         'company': company_name,
@@ -732,6 +765,46 @@ async def extract_job_details_advanced(page, job_url, company_name):
         if 'workday' in job_url.lower():
             print(f"Skipping Workday job (non-US company): {job_url}")
             return None
+        
+        # AI-FIRST APPROACH: Try AI parsing first
+        try:
+            from ai_parser import get_ai_parser
+            
+            # Extract raw page content
+            raw_content = await extract_raw_page_content(page)
+            
+            if raw_content and len(raw_content) > 100:
+                print(f"🤖 Using AI to parse: {job_url}")
+                
+                # Get AI parser instance
+                ai_parser = get_ai_parser()
+                
+                # Parse with AI
+                ai_result = await ai_parser.parse_job_safe(raw_content, job_url)
+                
+                # If AI successfully extracted data, use it
+                if ai_result and ai_result.get('title') and ai_result.get('company'):
+                    print(f"  ✅ AI successfully parsed: {ai_result.get('title')} at {ai_result.get('company')}")
+                    
+                    # Merge AI results with job_data, prioritizing AI results
+                    for key, value in ai_result.items():
+                        if value:  # Only update if AI found a value
+                            job_data[key] = value
+                    
+                    # Mark as AI-parsed
+                    job_data['parsing_method'] = 'ai'
+                    return job_data
+                else:
+                    print(f"  ⚠️  AI parsing incomplete, falling back to manual parsing")
+            else:
+                print(f"  ⚠️  Insufficient content for AI parsing, using manual parsing")
+                
+        except Exception as ai_error:
+            print(f"  ❌ AI parsing failed: {ai_error}, falling back to manual parsing")
+        
+        # FALLBACK: Use manual provider-specific parsing
+        print(f"📋 Using manual parsing for: {job_url}")
+        job_data['parsing_method'] = 'manual'
         
         # Determine ATS provider and use appropriate selectors
         if 'greenhouse' in job_url.lower():

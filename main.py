@@ -1854,7 +1854,7 @@ async def parse_greenhouse_sections(content):
                 'you\'ll work to', 'you will work to', 'as a', 'in this role',
                 'the ideal candidate will', 'you\'ll be responsible for', 'you will be responsible for'
             ],
-            'requirements': [
+            'qualifications': [
                 'required qualifications', 'requirements', 'you should have', 
                 'you have', 'qualifications', 'required skills', 'minimum qualifications',
                 'preferred qualifications', 'nice to have', 'bonus points',
@@ -1941,8 +1941,8 @@ async def parse_greenhouse_sections(content):
                         'equal employment opportunity', 'public burden statement'
                     ]):
                         break
-                elif current_section == 'requirements':
-                    # For requirements section, stop at benefits or application forms
+                elif current_section == 'qualifications':
+                    # For qualifications section, stop at benefits or application forms
                     if any(phrase in line_lower for phrase in [
                         'benefits', 'what we offer', 'perks', 'compensation',
                         'create a job alert', 'apply for this job', 'back to jobs',
@@ -1950,9 +1950,9 @@ async def parse_greenhouse_sections(content):
                     ]):
                         break
                 elif current_section == 'responsibilities':
-                    # For responsibilities section, stop at requirements or application forms
+                    # For responsibilities section, stop at qualifications or application forms
                     if any(phrase in line_lower for phrase in [
-                        'requirements', 'qualifications', 'you should have',
+                        'qualifications', 'requirements', 'you should have',
                         'create a job alert', 'apply for this job', 'back to jobs',
                         'apply', 'powered by'
                     ]):
@@ -2016,8 +2016,8 @@ async def parse_greenhouse_sections(content):
                 elif in_benefits_section and len(line_clean) > 20:  # Continue if we're in benefits section
                     # Stop if we hit application forms or other sections
                     if any(phrase in line_lower for phrase in [
-                        'create a job alert', 'apply for this job', 'requirements',
-                        'qualifications', 'responsibilities', 'what you\'ll do',
+                        'create a job alert', 'apply for this job', 'qualifications',
+                        'requirements', 'responsibilities', 'what you\'ll do',
                         'voluntary self-identification', 'equal employment opportunity',
                         'public burden statement', 'back to jobs', 'apply', 'powered by',
                         'us salary range', 'salary range'
@@ -2032,7 +2032,7 @@ async def parse_greenhouse_sections(content):
                 sections['benefits'] = '\n'.join(benefits_content)[:2000]
         
         # Fallback section detection for missed sections
-        if 'responsibilities' not in sections or 'requirements' not in sections:
+        if 'responsibilities' not in sections or 'qualifications' not in sections:
             content_lower = content.lower()
             lines = content.split('\n')
             
@@ -2060,7 +2060,7 @@ async def parse_greenhouse_sections(content):
                     elif in_responsibilities and len(line_clean) > 20:
                         # Continue if we're in responsibilities section
                         if any(phrase in line_lower for phrase in [
-                            'requirements', 'qualifications', 'benefits', 'compensation',
+                            'qualifications', 'requirements', 'benefits', 'compensation',
                             'create a job alert', 'apply for this job'
                         ]):
                             break
@@ -2069,10 +2069,10 @@ async def parse_greenhouse_sections(content):
                 if responsibilities_content:
                     sections['responsibilities'] = '\n'.join(responsibilities_content)[:2000]
             
-            # Look for requirements patterns even without clear headers
-            if 'requirements' not in sections:
-                requirements_content = []
-                in_requirements = False
+            # Look for qualifications patterns even without clear headers
+            if 'qualifications' not in sections:
+                qualifications_content = []
+                in_qualifications = False
                 
                 for line in lines:
                     line_clean = line.strip()
@@ -2081,26 +2081,26 @@ async def parse_greenhouse_sections(content):
                     
                     line_lower = line_clean.lower()
                     
-                    # Check for requirements indicators
+                    # Check for qualifications indicators
                     if any(phrase in line_lower for phrase in [
                         'years of experience', 'experience in', 'proficiency in', 'knowledge of',
                         'strong', 'excellent', 'ability to', 'must have', 'should have',
                         '8+ years', '5+ years', '3+ years', '2+ years', '1+ years',
                         'bachelor\'s degree', 'master\'s degree', 'phd', 'degree in'
                     ]):
-                        in_requirements = True
-                        requirements_content.append(line_clean)
-                    elif in_requirements and len(line_clean) > 20:
-                        # Continue if we're in requirements section
+                        in_qualifications = True
+                        qualifications_content.append(line_clean)
+                    elif in_qualifications and len(line_clean) > 20:
+                        # Continue if we're in qualifications section
                         if any(phrase in line_lower for phrase in [
                             'benefits', 'compensation', 'what we offer',
                             'create a job alert', 'apply for this job'
                         ]):
                             break
-                        requirements_content.append(line_clean)
+                        qualifications_content.append(line_clean)
                 
-                if requirements_content:
-                    sections['requirements'] = '\n'.join(requirements_content)[:2000]
+                if qualifications_content:
+                    sections['qualifications'] = '\n'.join(qualifications_content)[:2000]
         
         # Special handling for work environment - look for specific patterns
         if 'work_environment' not in sections:
@@ -2807,7 +2807,7 @@ async def parse_job_sections(content):
         # Common section headers to look for
         section_headers = {
             'about_company': ['about us', 'about the company', 'about', 'who we are', 'our company', 'our mission', 'company overview', 'our story'],
-            'requirements': ['requirements', 'qualifications', 'what you need', 'you have', 'required skills', 'minimum qualifications'],
+            'qualifications': ['requirements', 'qualifications', 'what you need', 'you have', 'required skills', 'minimum qualifications'],
             'responsibilities': ['responsibilities', 'what you\'ll do', 'you will', 'duties', 'role description', 'job description'],
             'benefits': ['benefits', 'what we offer', 'perks', 'compensation', 'package'],
             'work_environment': ['remote', 'hybrid', 'onsite', 'location', 'work from']
@@ -3078,7 +3078,7 @@ def save_job_to_db(job_data):
                 existing_job.alternate_locations = job_data.get('alternate_locations', existing_job.alternate_locations)
                 existing_job.employment_type = job_data.get('employment_type', existing_job.employment_type)
                 existing_job.description = job_data.get('description', existing_job.description)
-                existing_job.requirements = job_data.get('requirements', existing_job.requirements)
+                existing_job.qualifications = job_data.get('qualifications', existing_job.qualifications)
                 existing_job.responsibilities = job_data.get('responsibilities', existing_job.responsibilities)
                 existing_job.benefits = job_data.get('benefits', existing_job.benefits)
                 existing_job.salary_range = job_data.get('salary_range', existing_job.salary_range)
@@ -3127,7 +3127,7 @@ def save_job_to_db(job_data):
             alternate_locations=job_data.get('alternate_locations'),
             employment_type=job_data.get('employment_type'),
             description=job_data.get('description'),
-            requirements=job_data.get('requirements'),
+            qualifications=job_data.get('qualifications'),
             responsibilities=job_data.get('responsibilities'),
             benefits=job_data.get('benefits'),
             salary_range=job_data.get('salary_range'),

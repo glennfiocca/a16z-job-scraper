@@ -20,7 +20,7 @@ class Job(db.Model):
     alternate_locations = db.Column(db.Text, nullable=True)
     employment_type = db.Column(db.String(100), nullable=True)
     description = db.Column(db.Text, nullable=True)
-    requirements = db.Column(db.Text, nullable=True)
+    qualifications = db.Column(db.Text, nullable=True)
     responsibilities = db.Column(db.Text, nullable=True)
     benefits = db.Column(db.Text, nullable=True)
     salary_range = db.Column(db.String(255), nullable=True)

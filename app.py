@@ -34,7 +34,11 @@ scraping_status = {
     'start_time': None,
     'current_company': None,
     'total_companies': 0,
-    'completed_companies': 0
+    'completed_companies': 0,
+    'ai_calls': 0,
+    'ai_success': 0,
+    'manual_fallbacks': 0,
+    'estimated_cost': 0.0
 }
 
 @app.route('/')
@@ -261,6 +265,10 @@ def trigger_scrape():
         scraping_status['current_company'] = None
         scraping_status['total_companies'] = 0
         scraping_status['completed_companies'] = 0
+        scraping_status['ai_calls'] = 0
+        scraping_status['ai_success'] = 0
+        scraping_status['manual_fallbacks'] = 0
+        scraping_status['estimated_cost'] = 0.0
         
         # Run the async scraper in a separate thread
         def run_scraper():
@@ -337,7 +345,11 @@ def scrape_status():
         'start_time': scraping_status['start_time'].isoformat() if scraping_status['start_time'] else None,
         'current_company': scraping_status['current_company'],
         'total_companies': scraping_status['total_companies'],
-        'completed_companies': scraping_status['completed_companies']
+        'completed_companies': scraping_status['completed_companies'],
+        'ai_calls': scraping_status.get('ai_calls', 0),
+        'ai_success': scraping_status.get('ai_success', 0),
+        'manual_fallbacks': scraping_status.get('manual_fallbacks', 0),
+        'estimated_cost': round(scraping_status.get('estimated_cost', 0.0), 4)
     })
 
 if __name__ == '__main__':

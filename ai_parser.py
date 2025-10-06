@@ -32,9 +32,8 @@ Extract and return ONLY a JSON object with these exact fields:
     "location": "Primary location (city, state/country). Can be remote, but only for fully-remote jobs that do not have a location listed.",
     "alternate_locations": "Other locations as comma-separated string (or null if none). Remote can be listed here if it is an option.",
     "employment_type": "Full-time, Part-time, Contract, Internship, etc. Almost all jobs should be full-time, under the current scraping logic.",
-    "description": "Copy ALL job role content VERBATIM including 'About the Role'/'About this role' intro paragraphs. This is distinct from the responsibilities, which usually flow under the job description. The description should just be whatever VERBATIM text the company offers on the role generally. Do NOT include responsibilities or qualifications in the job description.",
-    "qualifications": "Copy ALL qualifications/requirements VERBATIM from sections like 'About You', 'Requirements', 'Qualifications', 'What we're looking for', etc. Include exact text with all bullet points. DO NOT duplicate this content in the description field above.",
-    "responsibilities": "This is where we want to show what responsibilities are tied to the role, which is distinct from the description. This should be a list of things that the candidate will do on a day-to-day basis, specifically. DO NOT duplicate any text from other sections here.", 
+    "about_job": "Copy ALL job role content VERBATIM including 'About the Role'/'About this role' intro paragraphs AND all responsibilities/day-to-day tasks. This field should contain both the general job description and what the candidate will do. Include sections like 'What You'll Do', 'Responsibilities', 'Key Responsibilities', etc. DO NOT include qualifications in this field.",
+    "qualifications": "Copy ALL qualifications/requirements VERBATIM from sections like 'About You', 'Requirements', 'Qualifications', 'What we're looking for', etc. Include exact text with all bullet points. DO NOT duplicate this content in the about_job field above.",
     "benefits": "Copy ALL benefits and perks VERBATIM from the listing - exact text including all details about equity, insurance, PTO, allowances, etc. Do not summarize.",
     "salary_range": "COMPLETE salary range exactly as written (e.g. '$180K - $260K + equity'). Include equity/stock info if mentioned.",
     "work_environment": "Remote, Hybrid, Onsite, or null if unclear"
@@ -44,14 +43,13 @@ CRITICAL EXTRACTION RULES - ZERO DUPLICATION ALLOWED:
 - Copy text EXACTLY as written - DO NOT summarize, paraphrase, or reword
 - **ZERO DUPLICATION**: Each sentence/bullet point appears in ONLY ONE field, never repeated
 - **STRICT SEGMENTATION RULES**:
-  * description = ONLY role overview + what the job generally entails
+  * about_job = ALL role overview + what the job generally entails + responsibilities + day-to-day tasks
   * qualifications = ONLY qualifications + skills needed + experience required
-- **IMPORTANT - "About You" sections ALWAYS go in qualifications, NEVER in description**
-- **IMPORTANT - If a section describes what skills/qualifications are needed, it goes in qualifications ONLY, not description**
-- For description: Extract ONLY content about the job itself at a high-level. Stop before any qualification/requirement content
+- **IMPORTANT - "About You" sections ALWAYS go in qualifications, NEVER in about_job**
+- **IMPORTANT - If a section describes what skills/qualifications are needed, it goes in qualifications ONLY, not about_job**
+- For about_job: Extract ALL content about the job role including high-level description AND specific responsibilities/tasks. Include 'About the Role', 'What You'll Do', 'Responsibilities', 'Key Responsibilities', etc.
 - For qualifications: Extract ALL "About You", "Requirements", "Qualifications", "What we're looking for", "You have", "You are" sections
-- **VERIFICATION STEP**: Before finalizing, check that NO text appears in both description and qualifications. If it does, remove it from the less relevant field
-- For responsibilities: include day-to-day tasks explicitly mentioned in the listing, without repeating description content.
+- **VERIFICATION STEP**: Before finalizing, check that NO text appears in both about_job and qualifications. If it does, remove it from the less relevant field
 - For benefits: Copy ENTIRE benefits section verbatim
 - Return ONLY valid JSON
 """
@@ -93,9 +91,8 @@ CRITICAL EXTRACTION RULES - ZERO DUPLICATION ALLOWED:
             "location": None,
             "alternate_locations": None,
             "employment_type": None,
-            "description": None,
+            "about_job": None,
             "qualifications": None,
-            "responsibilities": None,
             "benefits": None,
             "salary_range": None,
             "work_environment": None

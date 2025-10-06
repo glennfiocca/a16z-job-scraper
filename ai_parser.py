@@ -32,8 +32,8 @@ Extract and return ONLY a JSON object with these exact fields:
     "location": "Primary location (city, state/country)",
     "alternate_locations": "Other locations as comma-separated string (or null if none)",
     "employment_type": "Full-time, Part-time, Contract, Internship, etc.",
-    "description": "MOST IMPORTANT FIELD - Copy ALL job role content VERBATIM including: (1) 'About the Role'/'About this role' intro paragraphs, (2) ENTIRE 'Key Responsibilities' section with ALL subsections and bullet points, (3) 'What you'll do'/'Your responsibilities' sections, (4) ANY other content about job duties. Extract WORD-FOR-WORD - do NOT stop after intro paragraph. If you see headings like 'Strategic Leadership', 'Talent Acquisition', 'Performance Management' under responsibilities, include ALL of them with their bullet points.",
-    "requirements": "Copy ALL requirements VERBATIM from the listing - exact text, bullet points, everything as written. Do not summarize or paraphrase.",
+    "description": "Copy ALL job role/responsibility content VERBATIM including: (1) 'About the Role'/'About this role' intro paragraphs, (2) ENTIRE 'Key Responsibilities' section with ALL subsections and bullet points, (3) 'What you'll do'/'Your responsibilities' sections, (4) ANY content about job duties. DO NOT include requirements/qualifications here - those go in the requirements field below.",
+    "requirements": "Copy ALL requirements/qualifications VERBATIM from sections like 'About You', 'Requirements', 'Qualifications', 'What we're looking for', etc. Include exact text with all bullet points. DO NOT duplicate this content in the description field above.",
     "responsibilities": "Use null for this field - responsibilities should be included in the description field above. Only use this field if there is truly redundant/separate content that doesn't fit in description (which is rare).", 
     "benefits": "Copy ALL benefits and perks VERBATIM from the listing - exact text including all details about equity, insurance, PTO, allowances, etc. Do not summarize.",
     "salary_range": "COMPLETE salary range exactly as written (e.g. '$180K - $260K + equity'). Include equity/stock info if mentioned.",
@@ -41,18 +41,20 @@ Extract and return ONLY a JSON object with these exact fields:
     "work_environment": "Remote, Hybrid, Onsite, or null if unclear"
 }}
 
-CRITICAL EXTRACTION RULES - VERBATIM TEXT ONLY:
-- Copy text EXACTLY as written in the job posting - DO NOT summarize, paraphrase, or reword
-- Extract COMPLETE sections word-for-word from the original listing - ALL paragraphs, ALL sub-sections, ALL bullet points
-- For description/role: This is the MOST IMPORTANT field. Extract ALL content about the role including: (1) "About the Role" paragraphs, (2) "Key Responsibilities" sections, (3) "What you'll do" lists, (4) ALL related job duty content. DO NOT stop after the first paragraph or section - include EVERYTHING about what the person will do!
-- For requirements: Copy the ENTIRE requirements/qualifications section verbatim - every qualification, skill, year requirement exactly as written
-- For responsibilities: Leave this as null - all responsibility content should go in description above
-- For benefits: Copy the ENTIRE benefits section verbatim - every perk, detail, and number exactly as written
-- Preserve ALL details, bullet points, and specific information exactly as they appear
-- Remove only navigation/UI elements and footer text - keep ALL job content unchanged
-- If information is formatted as bullet points, preserve that structure in the text
-- Return ONLY valid JSON, no other text
-- Use null only if that section truly does not exist in the listing
+CRITICAL EXTRACTION RULES - ZERO DUPLICATION ALLOWED:
+- Copy text EXACTLY as written - DO NOT summarize, paraphrase, or reword
+- **ZERO DUPLICATION**: Each sentence/bullet point appears in ONLY ONE field, never repeated
+- **STRICT SEGMENTATION RULES**:
+  * description = ONLY role overview + what the job entails + what you'll do (job responsibilities/duties)
+  * requirements = ONLY qualifications + skills needed + experience required
+- **IMPORTANT - "About You" sections ALWAYS go in requirements, NEVER in description**
+- **IMPORTANT - If a section describes what skills/qualifications are needed, it goes in requirements ONLY, not description**
+- For description: Extract ONLY content about the job itself and what the person will do. Stop before any qualification/requirement content
+- For requirements: Extract ALL "About You", "Requirements", "Qualifications", "What we're looking for", "You have", "You are" sections
+- **VERIFICATION STEP**: Before finalizing, check that NO text appears in both description and requirements. If it does, remove it from description
+- For responsibilities: Leave as null
+- For benefits: Copy ENTIRE benefits section verbatim
+- Return ONLY valid JSON
 """
 
         try:

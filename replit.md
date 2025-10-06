@@ -20,6 +20,10 @@ Preferred communication style: Simple, everyday language.
 - **AI-First Parsing**: Uses OpenAI GPT-3.5-turbo as the PRIMARY method to extract structured job data from raw HTML content
   - Extracts VERBATIM text from job listings (no summarization or paraphrasing)
   - Extracts comprehensive fields: title, company, about_company, location, requirements, responsibilities, benefits, salary, experience level, work environment
+  - **Complete Section Extraction**: Captures ENTIRE job sections including all paragraphs and sub-sections
+    - Job Description includes ALL content under "Role", "About the Job", or "Job Description" headings, including embedded sub-sections like "What you'll do"
+    - Avoids duplication by only using separate fields (responsibilities, requirements) when they exist as distinct sections
+    - Increased token limit to 3000 to handle detailed, multi-paragraph job descriptions
   - Falls back to manual provider-specific parsing only if AI extraction fails
   - Tracks AI usage metrics: API calls, success rate, fallback frequency, and estimated cost per session
 - **US-Only Filter**: Automatically filters out international jobs, only saves US-based positions

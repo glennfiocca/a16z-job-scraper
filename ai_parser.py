@@ -32,9 +32,9 @@ Extract and return ONLY a JSON object with these exact fields:
     "location": "Primary location (city, state/country)",
     "alternate_locations": "Other locations as comma-separated string (or null if none)",
     "employment_type": "Full-time, Part-time, Contract, Internship, etc.",
-    "description": "Copy the EXACT job description text from the listing - word for word, no summarizing",
+    "description": "Copy the COMPLETE job description/role section VERBATIM - this includes ALL paragraphs, sub-sections, bullet points, and any content under headings like 'Role', 'About the Job', 'Job Description'. IMPORTANT: If 'What you'll do' or similar sub-headings appear WITHIN the Role/Description section, include them here. Extract EVERYTHING word-for-word from the main job description area, do not stop after the first paragraph.",
     "requirements": "Copy ALL requirements VERBATIM from the listing - exact text, bullet points, everything as written. Do not summarize or paraphrase.",
-    "responsibilities": "Copy ALL responsibilities VERBATIM from the listing - exact text as written, preserve all details and bullet points. Do not summarize.", 
+    "responsibilities": "Copy responsibilities VERBATIM from the listing ONLY if there is a separate, dedicated 'Responsibilities' section distinct from the Role/Description. If 'What you'll do' is part of the Role section, do NOT duplicate it here. Use null if no separate responsibilities section exists.", 
     "benefits": "Copy ALL benefits and perks VERBATIM from the listing - exact text including all details about equity, insurance, PTO, allowances, etc. Do not summarize.",
     "salary_range": "COMPLETE salary range exactly as written (e.g. '$180K - $260K + equity'). Include equity/stock info if mentioned.",
     "experience_level": "Entry, Mid, Senior, Executive, or null if unclear",
@@ -43,11 +43,12 @@ Extract and return ONLY a JSON object with these exact fields:
 
 CRITICAL EXTRACTION RULES - VERBATIM TEXT ONLY:
 - Copy text EXACTLY as written in the job posting - DO NOT summarize, paraphrase, or reword
-- Extract COMPLETE sections word-for-word from the original listing
-- Preserve ALL details, bullet points, and specific information exactly as they appear
+- Extract COMPLETE sections word-for-word from the original listing - ALL paragraphs, ALL sub-sections, ALL bullet points
+- For description/role: Extract the ENTIRE section including ALL paragraphs, sub-headings (like "What you'll do"), bullet points, and any related content. DO NOT stop after the first paragraph!
 - For requirements: Copy the ENTIRE requirements section verbatim - every qualification, skill, year requirement exactly as written
 - For responsibilities: Copy the ENTIRE responsibilities section verbatim - every duty and task exactly as written  
 - For benefits: Copy the ENTIRE benefits section verbatim - every perk, detail, and number exactly as written
+- Preserve ALL details, bullet points, and specific information exactly as they appear
 - Remove only navigation/UI elements and footer text - keep ALL job content unchanged
 - If information is formatted as bullet points, preserve that structure in the text
 - Return ONLY valid JSON, no other text
@@ -59,7 +60,7 @@ CRITICAL EXTRACTION RULES - VERBATIM TEXT ONLY:
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
-                max_tokens=2000  # Increased from 1000 to allow more comprehensive responses
+                max_tokens=3000  # Increased to capture complete, detailed job descriptions with all sections
             )
             
             # Parse the JSON response

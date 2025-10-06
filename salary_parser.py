@@ -36,14 +36,15 @@ class SalaryParser:
         ]
         
         # Regex patterns for different salary formats (ordered by specificity)
+        # Note: [-–—] matches hyphen, en-dash, and em-dash
         self.patterns = {
             # K notation ranges first (most specific)
-            'range_k_notation': r'\$(\d{1,3})K\s*-\s*\$(\d{1,3})K',
+            'range_k_notation': r'\$(\d{1,3})K\s*[-–—]\s*\$(\d{1,3})K',
             # K notation single (must not be followed by range)
-            'single_k_notation': r'\$(\d{1,3})K(?!\s*-\s*\$)',  
+            'single_k_notation': r'\$(\d{1,3})K(?!\s*[-–—]\s*\$)',  
             # Regular ranges
-            'range_with_commas': r'\$(\d{1,3}(?:,\d{3})*)\s*-\s*\$(\d{1,3}(?:,\d{3})*)',
-            'range_no_commas': r'\$(\d{3,7})\s*-\s*\$(\d{3,7})',
+            'range_with_commas': r'\$(\d{1,3}(?:,\d{3})*)\s*[-–—]\s*\$(\d{1,3}(?:,\d{3})*)',
+            'range_no_commas': r'\$(\d{3,7})\s*[-–—]\s*\$(\d{3,7})',
             'range_with_to': r'\$(\d{1,3}(?:,\d{3})*)\s+to\s+\$(\d{1,3}(?:,\d{3})*)',
             # Single salaries (less specific, comes last)
             'single_with_commas': r'\$(\d{1,3}(?:,\d{3})*)(?!K)',  # Not followed by K

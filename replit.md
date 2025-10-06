@@ -19,11 +19,11 @@ Preferred communication style: Simple, everyday language.
 - Uses a two-phase approach: URL collection followed by individual job processing
 - **AI-First Parsing**: Uses OpenAI GPT-3.5-turbo as the PRIMARY method to extract structured job data from raw HTML content
   - Extracts VERBATIM text from job listings (no summarization or paraphrasing)
-  - Extracts comprehensive fields: title, company, about_company, location, requirements, responsibilities, benefits, salary, experience level, work environment
+  - Extracts comprehensive fields: title, company, about_company, location, about_job (combines description and responsibilities), qualifications, benefits, salary, work environment
   - **Complete Section Extraction**: Captures ENTIRE job sections including all paragraphs and sub-sections
-    - Job Description includes ALL content under "Role", "About the Job", or "Job Description" headings, including embedded sub-sections like "What you'll do"
-    - Avoids duplication by only using separate fields (responsibilities, requirements) when they exist as distinct sections
-    - Increased token limit to 3000 to handle detailed, multi-paragraph job descriptions
+    - About Job field includes ALL content about the role: description, responsibilities, and day-to-day tasks combined
+    - This consolidated approach simplifies data capture and avoids confusion between similar fields
+    - Increased token limit to 4000 to handle detailed, multi-paragraph job descriptions with responsibilities
   - Falls back to manual provider-specific parsing only if AI extraction fails
   - Tracks AI usage metrics: API calls, success rate, fallback frequency, and estimated cost per session
 - **US-Only Filter**: Automatically filters out international jobs, only saves US-based positions
@@ -33,8 +33,9 @@ Preferred communication style: Simple, everyday language.
 
 **Data Layer**
 - SQLAlchemy ORM with Flask integration for database operations
-- Job model storing comprehensive job posting information including title, company, about_company (company description/blurb), location, employment type, description, requirements, responsibilities, benefits, and metadata
+- Job model storing comprehensive job posting information including title, company, about_company (company description), location, employment type, about_job (role description and responsibilities combined), qualifications, benefits, and metadata
 - Automatic timestamp tracking for scraping activities
+- **Recent Schema Update (Oct 2025)**: Consolidated 'description' and 'responsibilities' fields into single 'about_job' field to simplify data capture and reduce AI confusion
 
 **Application Structure**
 - Flask application factory pattern for modular configuration

@@ -32,9 +32,9 @@ Extract and return ONLY a JSON object with these exact fields:
     "location": "Primary location (city, state/country)",
     "alternate_locations": "Other locations as comma-separated string (or null if none)",
     "employment_type": "Full-time, Part-time, Contract, Internship, etc.",
-    "description": "Copy the COMPLETE job description/role section VERBATIM - this includes ALL paragraphs, sub-sections, bullet points, and any content under headings like 'Role', 'About the Job', 'Job Description'. IMPORTANT: If 'What you'll do' or similar sub-headings appear WITHIN the Role/Description section, include them here. Extract EVERYTHING word-for-word from the main job description area, do not stop after the first paragraph.",
+    "description": "MOST IMPORTANT FIELD - Copy ALL job role content VERBATIM including: (1) 'About the Role'/'About this role' intro paragraphs, (2) ENTIRE 'Key Responsibilities' section with ALL subsections and bullet points, (3) 'What you'll do'/'Your responsibilities' sections, (4) ANY other content about job duties. Extract WORD-FOR-WORD - do NOT stop after intro paragraph. If you see headings like 'Strategic Leadership', 'Talent Acquisition', 'Performance Management' under responsibilities, include ALL of them with their bullet points.",
     "requirements": "Copy ALL requirements VERBATIM from the listing - exact text, bullet points, everything as written. Do not summarize or paraphrase.",
-    "responsibilities": "Copy responsibilities VERBATIM from the listing ONLY if there is a separate, dedicated 'Responsibilities' section distinct from the Role/Description. If 'What you'll do' is part of the Role section, do NOT duplicate it here. Use null if no separate responsibilities section exists.", 
+    "responsibilities": "Use null for this field - responsibilities should be included in the description field above. Only use this field if there is truly redundant/separate content that doesn't fit in description (which is rare).", 
     "benefits": "Copy ALL benefits and perks VERBATIM from the listing - exact text including all details about equity, insurance, PTO, allowances, etc. Do not summarize.",
     "salary_range": "COMPLETE salary range exactly as written (e.g. '$180K - $260K + equity'). Include equity/stock info if mentioned.",
     "experience_level": "Entry, Mid, Senior, Executive, or null if unclear",
@@ -44,9 +44,9 @@ Extract and return ONLY a JSON object with these exact fields:
 CRITICAL EXTRACTION RULES - VERBATIM TEXT ONLY:
 - Copy text EXACTLY as written in the job posting - DO NOT summarize, paraphrase, or reword
 - Extract COMPLETE sections word-for-word from the original listing - ALL paragraphs, ALL sub-sections, ALL bullet points
-- For description/role: Extract the ENTIRE section including ALL paragraphs, sub-headings (like "What you'll do"), bullet points, and any related content. DO NOT stop after the first paragraph!
-- For requirements: Copy the ENTIRE requirements section verbatim - every qualification, skill, year requirement exactly as written
-- For responsibilities: Copy the ENTIRE responsibilities section verbatim - every duty and task exactly as written  
+- For description/role: This is the MOST IMPORTANT field. Extract ALL content about the role including: (1) "About the Role" paragraphs, (2) "Key Responsibilities" sections, (3) "What you'll do" lists, (4) ALL related job duty content. DO NOT stop after the first paragraph or section - include EVERYTHING about what the person will do!
+- For requirements: Copy the ENTIRE requirements/qualifications section verbatim - every qualification, skill, year requirement exactly as written
+- For responsibilities: Leave this as null - all responsibility content should go in description above
 - For benefits: Copy the ENTIRE benefits section verbatim - every perk, detail, and number exactly as written
 - Preserve ALL details, bullet points, and specific information exactly as they appear
 - Remove only navigation/UI elements and footer text - keep ALL job content unchanged
@@ -60,7 +60,7 @@ CRITICAL EXTRACTION RULES - VERBATIM TEXT ONLY:
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
-                max_tokens=3000  # Increased to capture complete, detailed job descriptions with all sections
+                max_tokens=4000  # Increased to capture complete job descriptions including Key Responsibilities sections
             )
             
             # Parse the JSON response

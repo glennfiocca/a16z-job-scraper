@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-New Stripe job extraction function
+New Stripe job extraction function - Not currently used by main.py
+This is an alternative implementation for reference.
 """
 
 async def extract_stripe_job(page, job_data):

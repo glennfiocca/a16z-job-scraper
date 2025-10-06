@@ -767,9 +767,10 @@ async def extract_job_details_advanced(page, job_url, company_name):
             return None
         
         # AI-FIRST APPROACH: Try AI parsing first
+        from app import scraping_status
+        
         try:
             from ai_parser import get_ai_parser
-            from app import scraping_status
             
             # Extract raw page content
             raw_content = await extract_raw_page_content(page)

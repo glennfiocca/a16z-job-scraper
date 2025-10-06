@@ -17,6 +17,10 @@ Preferred communication style: Simple, everyday language.
 - Handles headless Chrome browsing for efficient data collection
 - Implements robust error handling and timeout management
 - Uses a two-phase approach: URL collection followed by individual job processing
+- **AI-First Parsing**: Uses OpenAI GPT-3.5-turbo as the PRIMARY method to extract structured job data from raw HTML content
+  - Extracts comprehensive fields: title, company, location, requirements, responsibilities, benefits, salary, experience level, work environment
+  - Falls back to manual provider-specific parsing only if AI extraction fails
+  - Tracks AI usage metrics: API calls, success rate, fallback frequency, and estimated cost per session
 
 **Data Layer**
 - SQLAlchemy ORM with Flask integration for database operations

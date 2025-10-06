@@ -119,6 +119,90 @@ def parse_locations(location_text):
     
     return None, None
 
+def is_us_based_job(location, alternate_locations=None):
+    """
+    Check if a job is US-based by examining location strings.
+    Returns True if job is US-based, False if international.
+    """
+    if not location:
+        # If no location specified, assume it might be international - skip to be safe
+        return False
+    
+    # US state abbreviations
+    us_states = [
+        'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+        'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+        'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+        'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+        'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
+    ]
+    
+    # US indicators (case insensitive)
+    us_indicators = [
+        'united states', 'usa', 'u.s.a', 'u.s.', 'us',
+        'remote - us', 'remote (us)', 'remote us', 'us remote',
+        'anywhere in the us', 'anywhere in the united states',
+        'us-based', 'us based', 'nationwide'
+    ]
+    
+    # International indicators (immediate red flags)
+    international_indicators = [
+        'uk', 'united kingdom', 'london', 'england', 'scotland', 'wales',
+        'canada', 'toronto', 'vancouver', 'montreal', 'ottawa',
+        'europe', 'european union', 'eu',
+        'australia', 'sydney', 'melbourne',
+        'india', 'bangalore', 'mumbai', 'delhi', 'hyderabad',
+        'singapore', 'hong kong', 'china', 'beijing', 'shanghai',
+        'japan', 'tokyo', 'germany', 'berlin', 'france', 'paris',
+        'netherlands', 'amsterdam', 'sweden', 'switzerland',
+        'israel', 'tel aviv', 'ireland', 'dublin',
+        'mexico', 'brazil', 'argentina', 'chile',
+        'emea', 'apac', 'latam'
+    ]
+    
+    # Combine location and alternate locations for checking
+    all_locations = [location]
+    if alternate_locations:
+        all_locations.extend([loc.strip() for loc in alternate_locations.split(';')])
+    
+    location_text = ' '.join(all_locations).lower()
+    
+    # First check: If ANY international indicator is present, reject immediately
+    for indicator in international_indicators:
+        if indicator in location_text:
+            return False
+    
+    # Second check: Look for US indicators
+    for indicator in us_indicators:
+        if indicator in location_text:
+            return True
+    
+    # Third check: Look for US state abbreviations (with word boundaries)
+    location_upper = ' '.join(all_locations).upper()
+    for state in us_states:
+        # Check if state appears as whole word (not part of another word)
+        if re.search(r'\b' + state + r'\b', location_upper):
+            return True
+    
+    # Common US cities (not exhaustive, but covers major tech hubs)
+    us_cities = [
+        'new york', 'nyc', 'san francisco', 'los angeles', 'chicago',
+        'seattle', 'boston', 'austin', 'denver', 'portland',
+        'atlanta', 'miami', 'dallas', 'houston', 'phoenix',
+        'philadelphia', 'san diego', 'san jose', 'palo alto',
+        'mountain view', 'menlo park', 'cupertino', 'santa clara',
+        'redmond', 'raleigh', 'durham', 'nashville', 'salt lake city',
+        'minneapolis', 'detroit', 'pittsburgh', 'columbus', 'charlotte'
+    ]
+    
+    for city in us_cities:
+        if city in location_text:
+            return True
+    
+    # If we can't determine it's US-based, default to False (skip the job)
+    # This is conservative - we'd rather miss a US job than include an international one
+    return False
+
 def parse_salary_range(salary_text):
     """Parse salary text and extract clean numeric range"""
     if not salary_text or salary_text == "Not provided" or salary_text.strip() == "":
@@ -2938,6 +3022,13 @@ def save_job_to_db(job_data):
         salary_text = job_data.get('salary_range', '')
         if salary_text and parser.should_skip_job(salary_text):
             print(f"Skipping hourly-only job: {job_data.get('title', 'Unknown Title')} (salary: {salary_text[:50]}...)")
+            return
+        
+        # Check if job is US-based (skip international jobs)
+        location = job_data.get('location', '')
+        alternate_locations = job_data.get('alternate_locations', '')
+        if not is_us_based_job(location, alternate_locations):
+            print(f"🌍 Skipping international job: {job_data.get('title', 'Unknown Title')} at {job_data.get('company', 'Unknown')} (location: {location})")
             return
         
         # Check if job already exists by URL

@@ -18,9 +18,14 @@ Preferred communication style: Simple, everyday language.
 - Implements robust error handling and timeout management
 - Uses a two-phase approach: URL collection followed by individual job processing
 - **AI-First Parsing**: Uses OpenAI GPT-3.5-turbo as the PRIMARY method to extract structured job data from raw HTML content
+  - Extracts VERBATIM text from job listings (no summarization or paraphrasing)
   - Extracts comprehensive fields: title, company, location, requirements, responsibilities, benefits, salary, experience level, work environment
   - Falls back to manual provider-specific parsing only if AI extraction fails
   - Tracks AI usage metrics: API calls, success rate, fallback frequency, and estimated cost per session
+- **US-Only Filter**: Automatically filters out international jobs, only saves US-based positions
+  - Checks location against US states, cities, and geographic indicators
+  - Rejects jobs with international locations in primary or alternate location fields
+  - Conservative approach: skips jobs if location cannot be confirmed as US-based
 
 **Data Layer**
 - SQLAlchemy ORM with Flask integration for database operations

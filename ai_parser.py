@@ -13,13 +13,13 @@ class AIParser:
         self.model = "gpt-3.5-turbo"  # Start with cheaper model, can upgrade to gpt-4 later
         
     async def parse_greenhouse_job(self, raw_content: str, job_url: str) -> Dict[str, Any]:
-        """Parse Greenhouse job posting using AI"""
+        """Parse job posting using AI with comprehensive extraction"""
         
-        # Truncate content to avoid token limits (keep first 4000 chars)
-        truncated_content = raw_content[:4000]
+        # Increase limit to 10000 chars to capture more content
+        truncated_content = raw_content[:10000]
         
         prompt = f"""
-You are an expert at parsing job postings. Extract structured information from this Greenhouse job posting.
+You are an expert at extracting ALL information from job postings. Be COMPREHENSIVE and DETAILED.
 
 Job URL: {job_url}
 Raw Content: {truncated_content}
@@ -31,22 +31,24 @@ Extract and return ONLY a JSON object with these exact fields:
     "location": "Primary location (city, state/country)",
     "alternate_locations": "Other locations as comma-separated string (or null if none)",
     "employment_type": "Full-time, Part-time, Contract, Internship, etc.",
-    "description": "Clean job description (remove navigation, forms, etc.)",
-    "requirements": "Required qualifications and skills",
-    "responsibilities": "Job duties and responsibilities", 
-    "benefits": "Benefits and perks offered",
-    "salary_range": "Salary information if mentioned (or null)",
+    "description": "COMPLETE job description - include role overview, team info, and what the job entails",
+    "requirements": "ALL required qualifications, skills, experience, education - be exhaustive and detailed. Include years of experience, specific technologies, domain expertise, soft skills, etc.",
+    "responsibilities": "ALL job duties and responsibilities - be detailed and complete. List everything the person will do.", 
+    "benefits": "ALL benefits, perks, compensation details beyond base salary (equity, 401k, healthcare, PTO, work from home, childcare, wellness, etc.) - be comprehensive",
+    "salary_range": "COMPLETE salary range (e.g. '$180K - $260K', not just one number). Include equity/stock info if mentioned. If only one number shown, use that.",
     "experience_level": "Entry, Mid, Senior, Executive, or null if unclear",
     "work_environment": "Remote, Hybrid, Onsite, or null if unclear"
 }}
 
-Rules:
+CRITICAL EXTRACTION RULES:
+- Extract EVERYTHING from each section - be thorough and comprehensive
+- For requirements: Include ALL bullets, qualifications, years of experience, technologies, domains, education requirements
+- For responsibilities: Include ALL duties, tasks, and what the person will actually do
+- For benefits: Include ALL perks, equity, insurance, PTO, allowances, retirement, parental leave, etc.
+- For salary_range: Capture FULL range like "$180K - $260K" or "$180K - $260K + equity", NOT just "$180K"
+- Remove only navigation/UI elements, keep ALL substantive job content
 - Return ONLY valid JSON, no other text
-- Use null for missing information
-- Clean up text (remove extra whitespace, navigation elements)
-- For location: extract the main location, put others in alternate_locations
-- For description: remove company boilerplate, focus on actual job content
-- Be precise and accurate
+- Use null only if truly no information exists
 """
 
         try:
@@ -54,7 +56,7 @@ Rules:
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
-                max_tokens=1000
+                max_tokens=2000  # Increased from 1000 to allow more comprehensive responses
             )
             
             # Parse the JSON response

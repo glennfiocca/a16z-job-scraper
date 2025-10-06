@@ -791,11 +791,13 @@ async def extract_job_details_advanced(page, job_url, company_name):
                     scraping_status['ai_calls'] = scraping_status.get('ai_calls', 0) + 1
                 
                     # Estimate tokens (rough: ~750 chars per 1000 tokens)
-                    estimated_tokens = len(raw_content[:4000]) / 0.75
+                    # Now using up to 10000 chars input
+                    estimated_input_tokens = len(raw_content[:10000]) / 0.75
                     
                     # Estimate cost (GPT-3.5-turbo: $0.0005 per 1K input tokens, $0.0015 per 1K output tokens)
-                    # Assuming ~500 input + 200 output tokens average
-                    estimated_cost = (estimated_tokens / 1000 * 0.0005) + (200 / 1000 * 0.0015)
+                    # With comprehensive extraction, expecting ~500-800 output tokens
+                    estimated_output_tokens = 600
+                    estimated_cost = (estimated_input_tokens / 1000 * 0.0005) + (estimated_output_tokens / 1000 * 0.0015)
                     scraping_status['estimated_cost'] = scraping_status.get('estimated_cost', 0.0) + estimated_cost
                 
                 # Get AI parser instance

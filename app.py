@@ -41,6 +41,10 @@ scraping_status = {
     'estimated_cost': 0.0
 }
 
+# Set scraping status reference in main.py so it can update counters
+import main
+main.set_scraping_status(scraping_status)
+
 @app.route('/')
 def index():
     """Homepage with job listings"""

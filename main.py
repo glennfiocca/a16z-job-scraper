@@ -6,6 +6,14 @@ from flask import Flask
 from models import db, Job
 from datetime import datetime
 
+# Global reference to scraping status (set by app.py)
+scraping_status = None
+
+def set_scraping_status(status_dict):
+    """Set the global scraping status dictionary from app.py"""
+    global scraping_status
+    scraping_status = status_dict
+
 def parse_locations(location_text):
     """Parse location text and separate primary location from alternate locations"""
     if not location_text or location_text.strip() == "":
@@ -767,7 +775,7 @@ async def extract_job_details_advanced(page, job_url, company_name):
             return None
         
         # AI-FIRST APPROACH: Try AI parsing first
-        from app import scraping_status
+        global scraping_status
         
         try:
             from ai_parser import get_ai_parser
@@ -779,15 +787,16 @@ async def extract_job_details_advanced(page, job_url, company_name):
                 print(f"🤖 Using AI to parse: {job_url}")
                 
                 # Track AI call
-                scraping_status['ai_calls'] = scraping_status.get('ai_calls', 0) + 1
+                if scraping_status:
+                    scraping_status['ai_calls'] = scraping_status.get('ai_calls', 0) + 1
                 
-                # Estimate tokens (rough: ~750 chars per 1000 tokens)
-                estimated_tokens = len(raw_content[:4000]) / 0.75
-                
-                # Estimate cost (GPT-3.5-turbo: $0.0005 per 1K input tokens, $0.0015 per 1K output tokens)
-                # Assuming ~500 input + 200 output tokens average
-                estimated_cost = (estimated_tokens / 1000 * 0.0005) + (200 / 1000 * 0.0015)
-                scraping_status['estimated_cost'] = scraping_status.get('estimated_cost', 0.0) + estimated_cost
+                    # Estimate tokens (rough: ~750 chars per 1000 tokens)
+                    estimated_tokens = len(raw_content[:4000]) / 0.75
+                    
+                    # Estimate cost (GPT-3.5-turbo: $0.0005 per 1K input tokens, $0.0015 per 1K output tokens)
+                    # Assuming ~500 input + 200 output tokens average
+                    estimated_cost = (estimated_tokens / 1000 * 0.0005) + (200 / 1000 * 0.0015)
+                    scraping_status['estimated_cost'] = scraping_status.get('estimated_cost', 0.0) + estimated_cost
                 
                 # Get AI parser instance
                 ai_parser = get_ai_parser()
@@ -800,7 +809,8 @@ async def extract_job_details_advanced(page, job_url, company_name):
                     print(f"  ✅ AI successfully parsed: {ai_result.get('title')} at {ai_result.get('company')}")
                     
                     # Track AI success
-                    scraping_status['ai_success'] = scraping_status.get('ai_success', 0) + 1
+                    if scraping_status:
+                        scraping_status['ai_success'] = scraping_status.get('ai_success', 0) + 1
                     
                     # Merge AI results with job_data, prioritizing AI results
                     for key, value in ai_result.items():
@@ -812,14 +822,17 @@ async def extract_job_details_advanced(page, job_url, company_name):
                     return job_data
                 else:
                     print(f"  ⚠️  AI parsing incomplete, falling back to manual parsing")
-                    scraping_status['manual_fallbacks'] = scraping_status.get('manual_fallbacks', 0) + 1
+                    if scraping_status:
+                        scraping_status['manual_fallbacks'] = scraping_status.get('manual_fallbacks', 0) + 1
             else:
                 print(f"  ⚠️  Insufficient content for AI parsing, using manual parsing")
-                scraping_status['manual_fallbacks'] = scraping_status.get('manual_fallbacks', 0) + 1
+                if scraping_status:
+                    scraping_status['manual_fallbacks'] = scraping_status.get('manual_fallbacks', 0) + 1
                 
         except Exception as ai_error:
             print(f"  ❌ AI parsing failed: {ai_error}, falling back to manual parsing")
-            scraping_status['manual_fallbacks'] = scraping_status.get('manual_fallbacks', 0) + 1
+            if scraping_status:
+                scraping_status['manual_fallbacks'] = scraping_status.get('manual_fallbacks', 0) + 1
         
         # FALLBACK: Use manual provider-specific parsing
         print(f"📋 Using manual parsing for: {job_url}")

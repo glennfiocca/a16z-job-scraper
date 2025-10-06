@@ -19,7 +19,7 @@ class AIParser:
         truncated_content = raw_content[:10000]
         
         prompt = f"""
-You are an expert at extracting ALL information from job postings. Be COMPREHENSIVE and DETAILED.
+You are an expert at extracting information from job postings. Extract the EXACT TEXT from the listing - DO NOT SUMMARIZE OR PARAPHRASE.
 
 Job URL: {job_url}
 Raw Content: {truncated_content}
@@ -31,24 +31,26 @@ Extract and return ONLY a JSON object with these exact fields:
     "location": "Primary location (city, state/country)",
     "alternate_locations": "Other locations as comma-separated string (or null if none)",
     "employment_type": "Full-time, Part-time, Contract, Internship, etc.",
-    "description": "COMPLETE job description - include role overview, team info, and what the job entails",
-    "requirements": "ALL required qualifications, skills, experience, education - be exhaustive and detailed. Include years of experience, specific technologies, domain expertise, soft skills, etc.",
-    "responsibilities": "ALL job duties and responsibilities - be detailed and complete. List everything the person will do.", 
-    "benefits": "ALL benefits, perks, compensation details beyond base salary (equity, 401k, healthcare, PTO, work from home, childcare, wellness, etc.) - be comprehensive",
-    "salary_range": "COMPLETE salary range (e.g. '$180K - $260K', not just one number). Include equity/stock info if mentioned. If only one number shown, use that.",
+    "description": "Copy the EXACT job description text from the listing - word for word, no summarizing",
+    "requirements": "Copy ALL requirements VERBATIM from the listing - exact text, bullet points, everything as written. Do not summarize or paraphrase.",
+    "responsibilities": "Copy ALL responsibilities VERBATIM from the listing - exact text as written, preserve all details and bullet points. Do not summarize.", 
+    "benefits": "Copy ALL benefits and perks VERBATIM from the listing - exact text including all details about equity, insurance, PTO, allowances, etc. Do not summarize.",
+    "salary_range": "COMPLETE salary range exactly as written (e.g. '$180K - $260K + equity'). Include equity/stock info if mentioned.",
     "experience_level": "Entry, Mid, Senior, Executive, or null if unclear",
     "work_environment": "Remote, Hybrid, Onsite, or null if unclear"
 }}
 
-CRITICAL EXTRACTION RULES:
-- Extract EVERYTHING from each section - be thorough and comprehensive
-- For requirements: Include ALL bullets, qualifications, years of experience, technologies, domains, education requirements
-- For responsibilities: Include ALL duties, tasks, and what the person will actually do
-- For benefits: Include ALL perks, equity, insurance, PTO, allowances, retirement, parental leave, etc.
-- For salary_range: Capture FULL range like "$180K - $260K" or "$180K - $260K + equity", NOT just "$180K"
-- Remove only navigation/UI elements, keep ALL substantive job content
+CRITICAL EXTRACTION RULES - VERBATIM TEXT ONLY:
+- Copy text EXACTLY as written in the job posting - DO NOT summarize, paraphrase, or reword
+- Extract COMPLETE sections word-for-word from the original listing
+- Preserve ALL details, bullet points, and specific information exactly as they appear
+- For requirements: Copy the ENTIRE requirements section verbatim - every qualification, skill, year requirement exactly as written
+- For responsibilities: Copy the ENTIRE responsibilities section verbatim - every duty and task exactly as written  
+- For benefits: Copy the ENTIRE benefits section verbatim - every perk, detail, and number exactly as written
+- Remove only navigation/UI elements and footer text - keep ALL job content unchanged
+- If information is formatted as bullet points, preserve that structure in the text
 - Return ONLY valid JSON, no other text
-- Use null only if truly no information exists
+- Use null only if that section truly does not exist in the listing
 """
 
         try:

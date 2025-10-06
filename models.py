@@ -26,7 +26,6 @@ class Job(db.Model):
     salary_range = db.Column(db.String(255), nullable=True)
     salary_min = db.Column(db.Integer, nullable=True)
     salary_max = db.Column(db.Integer, nullable=True)
-    experience_level = db.Column(db.String(100), nullable=True)
     work_environment = db.Column(db.Text, nullable=True)
     source_url = db.Column(db.String(500), nullable=True)
     posted_date = db.Column(db.String(100), nullable=True)

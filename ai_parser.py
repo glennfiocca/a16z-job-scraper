@@ -37,7 +37,6 @@ Extract and return ONLY a JSON object with these exact fields:
     "responsibilities": "This is where we want to show what responsibilities are tied to the role, which is distinct from the description. This should be a list of things that the candidate will do on a day-to-day basis, specifically. DO NOT duplicate any text from other sections here.", 
     "benefits": "Copy ALL benefits and perks VERBATIM from the listing - exact text including all details about equity, insurance, PTO, allowances, etc. Do not summarize.",
     "salary_range": "COMPLETE salary range exactly as written (e.g. '$180K - $260K + equity'). Include equity/stock info if mentioned.",
-    "experience_level": "Entry, Mid, Senior, Executive, or null if unclear",
     "work_environment": "Remote, Hybrid, Onsite, or null if unclear"
 }}
 
@@ -49,10 +48,10 @@ CRITICAL EXTRACTION RULES - ZERO DUPLICATION ALLOWED:
   * requirements = ONLY qualifications + skills needed + experience required
 - **IMPORTANT - "About You" sections ALWAYS go in requirements, NEVER in description**
 - **IMPORTANT - If a section describes what skills/qualifications are needed, it goes in requirements ONLY, not description**
-- For description: Extract ONLY content about the job itself and what the person will do. Stop before any qualification/requirement content
+- For description: Extract ONLY content about the job itself at a high-level. Stop before any qualification/requirement content
 - For requirements: Extract ALL "About You", "Requirements", "Qualifications", "What we're looking for", "You have", "You are" sections
 - **VERIFICATION STEP**: Before finalizing, check that NO text appears in both description and requirements. If it does, remove it from the less relevant field
-- For responsibilities: include day-to-day tasks explicitly mentioned in the listing
+- For responsibilities: include day-to-day tasks explicitly mentioned in the listing, without repeating description content.
 - For benefits: Copy ENTIRE benefits section verbatim
 - Return ONLY valid JSON
 """
@@ -99,7 +98,6 @@ CRITICAL EXTRACTION RULES - ZERO DUPLICATION ALLOWED:
             "responsibilities": None,
             "benefits": None,
             "salary_range": None,
-            "experience_level": None,
             "work_environment": None
         }
     

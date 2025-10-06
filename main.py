@@ -2810,7 +2810,6 @@ async def parse_job_sections(content):
             'requirements': ['requirements', 'qualifications', 'what you need', 'you have', 'required skills', 'minimum qualifications'],
             'responsibilities': ['responsibilities', 'what you\'ll do', 'you will', 'duties', 'role description', 'job description'],
             'benefits': ['benefits', 'what we offer', 'perks', 'compensation', 'package'],
-            'experience_level': ['experience', 'years', 'seniority', 'level'],
             'work_environment': ['remote', 'hybrid', 'onsite', 'location', 'work from']
         }
         
@@ -3085,7 +3084,6 @@ def save_job_to_db(job_data):
                 existing_job.salary_range = job_data.get('salary_range', existing_job.salary_range)
                 existing_job.salary_min = job_data.get('salary_min', existing_job.salary_min)
                 existing_job.salary_max = job_data.get('salary_max', existing_job.salary_max)
-                existing_job.experience_level = job_data.get('experience_level', existing_job.experience_level)
                 existing_job.work_environment = job_data.get('work_environment', existing_job.work_environment)
                 existing_job.posted_date = job_data.get('posted_date', existing_job.posted_date)
                 existing_job.source = job_data.get('source', existing_job.source)
@@ -3135,7 +3133,6 @@ def save_job_to_db(job_data):
             salary_range=job_data.get('salary_range'),
             salary_min=job_data.get('salary_min'),
             salary_max=job_data.get('salary_max'),
-            experience_level=job_data.get('experience_level'),
             work_environment=job_data.get('work_environment'),
             source_url=job_data.get('source_url'),
             posted_date=job_data.get('posted_date'),

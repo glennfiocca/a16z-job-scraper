@@ -1059,7 +1059,7 @@ async def extract_databricks_job(page, job_data):
                 continue
         
         if full_content:
-            job_data['description'] = full_content[:10000]
+            job_data['about_job'] = full_content[:10000]
             print(f"Databricks: Extracted {len(full_content)} characters of content")
             
             # Parse sections from content
@@ -1217,7 +1217,7 @@ async def extract_waymo_job(page, job_data):
                 continue
         
         if full_content:
-            job_data['description'] = full_content[:10000]
+            job_data['about_job'] = full_content[:10000]
             print(f"Waymo: Extracted {len(full_content)} characters of content")
             
             # Parse sections from content
@@ -1389,7 +1389,7 @@ async def extract_navan_job(page, job_data):
         ''')
         
         if full_content:
-            job_data['description'] = full_content[:10000]
+            job_data['about_job'] = full_content[:10000]
             print(f"Navan: Extracted {len(full_content)} characters of content")
             
             # Parse sections from content
@@ -1480,7 +1480,7 @@ async def extract_wiz_job(page, job_data):
                 continue
         
         if full_content:
-            job_data['description'] = full_content[:10000]
+            job_data['about_job'] = full_content[:10000]
             print(f"Wiz: Extracted {len(full_content)} characters of content")
             
             # Parse sections from content
@@ -1574,7 +1574,7 @@ async def extract_fivetran_job(page, job_data):
                 continue
         
         if full_content:
-            job_data['description'] = full_content[:10000]
+            job_data['about_job'] = full_content[:10000]
             print(f"Fivetran: Extracted {len(full_content)} characters of content")
             
             # Parse sections from content
@@ -1965,10 +1965,6 @@ async def parse_greenhouse_sections(content):
         if current_section and section_content:
             sections[current_section] = '\n'.join(section_content)[:2000]
         
-        # Clean the description by removing content that's now in separate sections
-        if 'description' in sections:
-            sections['description'] = clean_job_description(sections['description'], sections)
-        
         # Post-process to extract benefits from compensation sections if not already found or if benefits section is too short
         if 'benefits' not in sections or len(sections.get('benefits', '')) < 100:
             content_lower = content.lower()
@@ -2298,11 +2294,19 @@ async def extract_greenhouse_job(page, job_data):
             
             # Clean the description by removing content that's now in separate sections
             cleaned_description = clean_job_description(full_content, sections)
-            job_data['description'] = cleaned_description[:10000]
+            
+            # Combine responsibilities into about_job if present
+            if 'responsibilities' in sections:
+                responsibilities_text = sections['responsibilities']
+                combined_about_job = cleaned_description + '\n\n' + responsibilities_text
+                job_data['about_job'] = combined_about_job[:10000]
+                del sections['responsibilities']
+            else:
+                job_data['about_job'] = cleaned_description[:10000]
             
             job_data.update(sections)
             print(f"Greenhouse: Extracted {len(full_content)} characters of content (filtered)")
-            print(f"Greenhouse: Cleaned description to {len(cleaned_description)} characters")
+            print(f"Greenhouse: Cleaned description to {len(job_data.get('about_job', ''))} characters")
             print(f"Greenhouse: Parsed sections: {list(sections.keys())}")
             
             # Enhanced work environment extraction
@@ -2383,7 +2387,7 @@ async def extract_lever_job(page, job_data):
                         break
             
             if full_content:
-                job_data['description'] = full_content[:10000]
+                job_data['about_job'] = full_content[:10000]
                 print(f"Lever: Extracted {len(full_content)} characters of content")
                 
                 # Parse sections from content
@@ -2399,7 +2403,7 @@ async def extract_lever_job(page, job_data):
             desc_selectors = ['.posting-content', '.section-wrapper']
             description = await get_text_by_selectors(page, desc_selectors)
             if description:
-                job_data['description'] = description[:10000]
+                job_data['about_job'] = description[:10000]
         
         # Salary/compensation
         salary_selectors = ['.salary', '.compensation', '.pay-range']
@@ -2522,7 +2526,7 @@ async def extract_ashby_job(page, job_data):
                         break
             
             if full_content:
-                job_data['description'] = full_content[:10000]
+                job_data['about_job'] = full_content[:10000]
                 print(f"Ashby: Extracted {len(full_content)} characters of content")
                 
                 # Parse sections from content
@@ -2538,7 +2542,7 @@ async def extract_ashby_job(page, job_data):
             desc_selectors = ['._descriptionText_oj0x8_198', '.ashby-job-posting-right-pane']
             description = await get_text_by_selectors(page, desc_selectors)
             if description:
-                job_data['description'] = description[:10000]
+                job_data['about_job'] = description[:10000]
         
         # Salary/compensation
         salary_selectors = ['.salary', '.compensation', '.pay-range']
@@ -2688,7 +2692,7 @@ async def extract_stripe_job(page, job_data):
             ''')
             
             if content_text and len(content_text.strip()) > 500:
-                job_data['description'] = content_text.strip()[:10000]
+                job_data['about_job'] = content_text.strip()[:10000]
                 print(f"Stripe: Extracted {len(content_text)} characters of content")
                 
                 # Parse sections from content
@@ -2704,7 +2708,7 @@ async def extract_stripe_job(page, job_data):
             desc_selectors = ['main', '.job-description', '.content']
             description = await get_text_by_selectors(page, desc_selectors)
             if description:
-                job_data['description'] = description[:10000]
+                job_data['about_job'] = description[:10000]
         
         # Salary information - Stripe often includes salary ranges
         try:
@@ -2763,7 +2767,7 @@ async def extract_generic_job(page, job_data):
         desc_selectors = ['.description', '.job-description', 'main', '.content']
         description = await get_text_by_selectors(page, desc_selectors)
         if description:
-            job_data['description'] = description[:5000]
+            job_data['about_job'] = description[:5000]
         
         # Salary/compensation
         salary_selectors = ['.salary', '.compensation', '.pay-range']
@@ -3046,9 +3050,9 @@ def save_job_to_db(job_data):
             update_reason = ""
             
             # Check if job is incomplete (missing key fields)
-            if not existing_job.description or len(existing_job.description) < 200:
+            if not existing_job.about_job or len(existing_job.about_job) < 200:
                 should_update = True
-                update_reason = "incomplete description"
+                update_reason = "incomplete about_job"
             elif not existing_job.location:
                 should_update = True
                 update_reason = "missing location"
@@ -3077,9 +3081,8 @@ def save_job_to_db(job_data):
                 existing_job.location = job_data.get('location', existing_job.location)
                 existing_job.alternate_locations = job_data.get('alternate_locations', existing_job.alternate_locations)
                 existing_job.employment_type = job_data.get('employment_type', existing_job.employment_type)
-                existing_job.description = job_data.get('description', existing_job.description)
+                existing_job.about_job = job_data.get('about_job', existing_job.about_job)
                 existing_job.qualifications = job_data.get('qualifications', existing_job.qualifications)
-                existing_job.responsibilities = job_data.get('responsibilities', existing_job.responsibilities)
                 existing_job.benefits = job_data.get('benefits', existing_job.benefits)
                 existing_job.salary_range = job_data.get('salary_range', existing_job.salary_range)
                 existing_job.salary_min = job_data.get('salary_min', existing_job.salary_min)

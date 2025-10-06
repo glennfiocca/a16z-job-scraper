@@ -123,10 +123,18 @@ async def extract_stripe_job(page, job_data):
             ''')
             
             if content_text:
-                job_data['description'] = content_text[:10000]
-                
                 # Parse sections from content
                 sections = await parse_job_sections(content_text)
+                
+                # Combine responsibilities into about_job if present
+                if 'responsibilities' in sections:
+                    responsibilities_text = sections['responsibilities']
+                    combined_about_job = content_text + '\n\n' + responsibilities_text
+                    job_data['about_job'] = combined_about_job[:10000]
+                    del sections['responsibilities']
+                else:
+                    job_data['about_job'] = content_text[:10000]
+                
                 job_data.update(sections)
         except Exception as e:
             print(f"Error extracting Stripe content: {e}")

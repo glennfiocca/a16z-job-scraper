@@ -261,10 +261,19 @@ class EnhancedGreenhouseParser:
                         cleaned_lines.append(line_clean)
                 
                 full_content = '\n'.join(cleaned_lines)
-                job_data['description'] = full_content[:10000]
                 
                 # Enhanced section parsing
                 sections = self.parse_sections_enhanced(full_content)
+                
+                # Combine responsibilities into about_job if present
+                if 'responsibilities' in sections:
+                    responsibilities_text = sections['responsibilities']
+                    combined_about_job = full_content + '\n\n' + responsibilities_text
+                    job_data['about_job'] = combined_about_job[:10000]
+                    del sections['responsibilities']
+                else:
+                    job_data['about_job'] = full_content[:10000]
+                
                 job_data.update(sections)
                 
                 # Work environment extraction

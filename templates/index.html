@@ -177,9 +177,9 @@ class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 focus:outli
                             </div>
                             {% endif %}
                         </div>
-                        {% if job.description %}
+                        {% if job.about_job %}
                         <p class="text-gray-700 text-sm line-clamp-3">
-                            {{ job.description[:200] }}...
+                            {{ job.about_job[:200] }}...
                         </p>
                         {% endif %}
                     </div>
@@ -375,9 +375,9 @@ function createJobHTML(job) {
                             </div>
                             ` : ''}
                         </div>
-                        ${job.description ? `
+                        ${job.about_job ? `
                         <p class="text-gray-700 text-sm line-clamp-3">
-                            ${job.description}
+                            ${job.about_job}
                         </p>
                         ` : ''}
                     </div>

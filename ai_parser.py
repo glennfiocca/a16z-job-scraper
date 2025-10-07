@@ -32,7 +32,7 @@ Extract and return ONLY a JSON object with these exact fields:
     "location": "Primary location (city, state/country). Can be remote, but only for fully-remote jobs that do not have a location listed.",
     "alternate_locations": "Other locations as comma-separated string (or null if none). Remote can be listed here if it is an option.",
     "employment_type": "Full-time, Part-time, Contract, Internship, etc. Almost all jobs should be full-time, under the current scraping logic.",
-    "about_job": "Copy ALL job role content VERBATIM including 'About the Role'/'About this role' intro paragraphs AND all responsibilities/day-to-day tasks. This field should contain both the general job description and what the candidate will do. Include sections like 'What You'll Do', 'Responsibilities', 'Key Responsibilities', etc. DO NOT include qualifications in this field.",
+    "about_job": "CRITICAL: Copy ALL details about the role VERBATIM. This field MUST include: (1) Any 'About the Role'/'About this role' intro paragraphs, (2) The COMPLETE 'Responsibilities' section with ALL bullet points, (3) Any 'What You'll Do'/'Key Responsibilities'/'Duties' sections with ALL details. This field describes what the job IS and what the person WILL DO. DO NOT include qualifications/requirements here.",
     "qualifications": "Copy ALL qualifications/requirements VERBATIM from sections like 'About You', 'Requirements', 'Qualifications', 'What we're looking for', etc. Include exact text with all bullet points. DO NOT duplicate this content in the about_job field above.",
     "benefits": "Copy ALL benefits and perks VERBATIM from the listing - exact text including all details about equity, insurance, PTO, allowances, etc. Do not summarize.",
     "salary_range": "COMPLETE salary range exactly as written (e.g. '$180K - $260K + equity'). Include equity/stock info if mentioned.",
@@ -42,14 +42,26 @@ Extract and return ONLY a JSON object with these exact fields:
 CRITICAL EXTRACTION RULES - ZERO DUPLICATION ALLOWED:
 - Copy text EXACTLY as written - DO NOT summarize, paraphrase, or reword
 - **ZERO DUPLICATION**: Each sentence/bullet point appears in ONLY ONE field, never repeated
-- **STRICT SEGMENTATION RULES**:
-  * about_job = ALL role overview + what the job generally entails + responsibilities + day-to-day tasks
-  * qualifications = ONLY qualifications + skills needed + experience required
+
+**ABOUT_JOB FIELD - MANDATORY RESPONSIBILITIES INCLUSION**:
+- The about_job field MUST contain the complete role description including ALL responsibilities
+- **RESPONSIBILITIES ARE REQUIRED**: Any section titled "Responsibilities", "What You'll Do", "Key Responsibilities", "Duties", "You Will", "Your Responsibilities", "Day to Day", etc. MUST be included in about_job
+- about_job = Role overview + Role description + COMPLETE Responsibilities section + All day-to-day tasks + What the person will do
+- If you see a "Responsibilities" section, you MUST copy all of its content verbatim into the about_job field
+- DO NOT skip or omit responsibility bullet points - include them ALL
+
+**STRICT SEGMENTATION RULES**:
+- about_job = What the job IS + What the candidate WILL DO (responsibilities, tasks, duties)
+- qualifications = What the candidate MUST HAVE (skills, experience, requirements)
 - **IMPORTANT - "About You" sections ALWAYS go in qualifications, NEVER in about_job**
+- **IMPORTANT - "Requirements" sections ALWAYS go in qualifications, NEVER in about_job**
 - **IMPORTANT - If a section describes what skills/qualifications are needed, it goes in qualifications ONLY, not about_job**
-- For about_job: Extract ALL content about the job role including high-level description AND specific responsibilities/tasks. Include 'About the Role', 'What You'll Do', 'Responsibilities', 'Key Responsibilities', etc.
-- For qualifications: Extract ALL "About You", "Requirements", "Qualifications", "What we're looking for", "You have", "You are" sections
-- **VERIFICATION STEP**: Before finalizing, check that NO text appears in both about_job and qualifications. If it does, remove it from the less relevant field
+
+**VERIFICATION STEPS**:
+1. Check that the about_job field includes ALL responsibilities sections (Responsibilities, What You'll Do, Key Responsibilities, etc.)
+2. Check that NO text appears in both about_job and qualifications. If it does, remove it from the less relevant field
+3. Verify qualifications contains only requirements/skills, NOT what the person will do on the job
+
 - For benefits: Copy ENTIRE benefits section verbatim
 - Return ONLY valid JSON
 """

@@ -34,7 +34,7 @@ Extract and return ONLY a JSON object with these exact fields:
     "employment_type": "Full-time, Part-time, Contract, Internship, etc. Almost all jobs should be full-time, under the current scraping logic.",
     "about_job": "CRITICAL: Copy ALL details about the role VERBATIM. This field MUST include: (1) Any 'About the Role'/'About this role' intro paragraphs, (2) The COMPLETE 'Responsibilities' section with ALL bullet points, (3) Any 'What You'll Do'/'Key Responsibilities'/'Duties' sections with ALL details. This field describes what the job IS and what the person WILL DO. DO NOT include qualifications/requirements here.",
     "qualifications": "Copy ALL qualifications/requirements VERBATIM from sections like 'About You', 'Requirements', 'Qualifications', 'What we're looking for', etc. Include exact text with all bullet points. DO NOT duplicate this content in the about_job field above.",
-    "benefits": "Copy ALL benefits and perks VERBATIM from the listing - exact text including all details about equity, insurance, PTO, allowances, etc. Do not summarize.",
+    "benefits": "CRITICAL: Copy the COMPLETE benefits section VERBATIM. This includes: (1) ALL text from 'Benefits & Perks'/'Benefits'/'Perks'/'Compensation' sections, (2) Salary explanations and equity details, (3) ALL listed benefits like Healthcare, PTO, Insurance, Retirement, Parental Leave, Professional Development, Relocation, Commuter Benefits, etc. Include ENTIRE paragraphs and ALL bullet points. DO NOT summarize or shorten.",
     "salary_range": "COMPLETE salary range exactly as written (e.g. '$180K - $260K + equity'). Include equity/stock info if mentioned.",
     "work_environment": "Remote, Hybrid, Onsite, or null if unclear"
 }}
@@ -57,12 +57,20 @@ CRITICAL EXTRACTION RULES - ZERO DUPLICATION ALLOWED:
 - **IMPORTANT - "Requirements" sections ALWAYS go in qualifications, NEVER in about_job**
 - **IMPORTANT - If a section describes what skills/qualifications are needed, it goes in qualifications ONLY, not about_job**
 
+**BENEFITS FIELD - MANDATORY COMPLETE EXTRACTION**:
+- The benefits field MUST contain the COMPLETE benefits/compensation information
+- **BENEFITS ARE CRITICAL**: Any section titled "Benefits & Perks", "Benefits", "Perks", "What We Offer", "Compensation", "Total Rewards", etc. MUST be fully extracted
+- Benefits often include: Salary explanations, Equity/Stock details, Healthcare, Dental, Vision, Insurance, PTO/Time Off, Parental Leave, Mental Health Resources, Professional Development, Relocation Assistance, Commuter Benefits, Retirement/401k, etc.
+- **IMPORTANT**: Benefits sections often contain both introductory paragraphs AND lists - include BOTH in their entirety
+- If benefits are mentioned in paragraph form (e.g., "Additionally, Anduril offers top-tier benefits for full-time employees, including: Healthcare Benefits, Income Protection..."), copy the ENTIRE paragraph verbatim
+- DO NOT skip any benefit items or shorten benefit descriptions
+
 **VERIFICATION STEPS**:
 1. Check that the about_job field includes ALL responsibilities sections (Responsibilities, What You'll Do, Key Responsibilities, etc.)
-2. Check that NO text appears in both about_job and qualifications. If it does, remove it from the less relevant field
-3. Verify qualifications contains only requirements/skills, NOT what the person will do on the job
+2. Check that the benefits field includes the COMPLETE benefits section with all paragraphs and lists
+3. Check that NO text appears in both about_job and qualifications. If it does, remove it from the less relevant field
+4. Verify qualifications contains only requirements/skills, NOT what the person will do on the job
 
-- For benefits: Copy ENTIRE benefits section verbatim
 - Return ONLY valid JSON
 """
 

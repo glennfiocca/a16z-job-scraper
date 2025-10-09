@@ -1,6 +1,7 @@
 import os
 import json
 import asyncio
+import re
 from openai import AsyncOpenAI
 from typing import Dict, Any, Optional
 
@@ -11,6 +12,26 @@ class AIParser:
             raise ValueError("OPENAI_API_KEY environment variable not set. Please add it as a secret in Replit.")
         self.client = AsyncOpenAI(api_key=api_key)
         self.model = "gpt-4o-mini"  # More capable and cheaper than gpt-3.5-turbo
+    
+    @staticmethod
+    def remove_emojis(text: str) -> str:
+        """Remove all emojis from text"""
+        if not text:
+            return text
+        # Emoji pattern - matches all emoji characters
+        emoji_pattern = re.compile(
+            "["
+            u"\U0001F600-\U0001F64F"  # emoticons
+            u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+            u"\U0001F680-\U0001F6FF"  # transport & map symbols
+            u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+            u"\U00002702-\U000027B0"
+            u"\U000024C2-\U0001F251"
+            u"\U0001F900-\U0001F9FF"  # Supplemental Symbols and Pictographs
+            u"\U0001FA70-\U0001FAFF"  # Symbols and Pictographs Extended-A
+            "]+", flags=re.UNICODE
+        )
+        return emoji_pattern.sub(r'', text).strip()
         
     async def parse_greenhouse_job(self, raw_content: str, job_url: str) -> Dict[str, Any]:
         """Parse job posting using AI with comprehensive extraction"""
@@ -56,6 +77,7 @@ EXTRACTION RULES:
 5. Salary can appear in BOTH salary_range AND benefits - this is ALLOWED and EXPECTED
 6. If a section has multiple paragraphs, include ALL of them
 7. Preserve ALL bullet points - do not skip or omit any
+8. REMOVE ALL EMOJIS from extracted text - no emojis should appear in any field (strip out 🚀 💻 👋 🎁 💸 💰 💼 💛 and all other emojis)
 
 OUTPUT FORMAT:
 Return ONLY a valid JSON object with these exact fields (no markdown, no explanation):
@@ -119,6 +141,15 @@ Extract and return the JSON object now:"""
             # Validate required fields
             if not result.get('title') or not result.get('company'):
                 raise ValueError("Missing required fields: title or company")
+            
+            # Remove emojis from all text fields
+            text_fields = ['title', 'company', 'about_company', 'location', 'alternate_locations', 
+                          'employment_type', 'about_job', 'qualifications', 'benefits', 
+                          'salary_range', 'work_environment']
+            
+            for field in text_fields:
+                if result.get(field) and isinstance(result[field], str):
+                    result[field] = self.remove_emojis(result[field])
                 
             return result
             

@@ -10,7 +10,7 @@ class AIParser:
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable not set. Please add it as a secret in Replit.")
         self.client = AsyncOpenAI(api_key=api_key)
-        self.model = "gpt-3.5-turbo"  # Start with cheaper model, can upgrade to gpt-4 later
+        self.model = "gpt-4o-mini"  # More capable and cheaper than gpt-3.5-turbo
         
     async def parse_greenhouse_job(self, raw_content: str, job_url: str) -> Dict[str, Any]:
         """Parse job posting using AI with comprehensive extraction"""

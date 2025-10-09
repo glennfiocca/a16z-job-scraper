@@ -329,6 +329,8 @@ async def scrape_a16z_jobs():
                 
                 # Step 2: Process each company individually
                 total_jobs_scraped = 0
+                skipped_companies = 0
+                
                 for i, company_info in enumerate(companies):
                     # Check if scraping should stop
                     print(f"Checking status before company {i+1}: is_running={scraping_status['is_running']}")
@@ -345,6 +347,17 @@ async def scrape_a16z_jobs():
                     
                     print(f"\n🏢 Processing company {i+1}/{len(companies)}: {company_name}")
                     print(f"Company URL: {company_url}")
+                    
+                    # Check if this company needs scraping
+                    needs_scraping, reason = should_scrape_company(company_name)
+                    
+                    if not needs_scraping:
+                        print(f"⏭️  Skipping {company_name}: {reason}")
+                        scraping_status['completed_companies'] = i + 1
+                        skipped_companies += 1
+                        continue
+                    else:
+                        print(f"🔄 Scraping {company_name}: {reason}")
                     
                     try:
                         # Get jobs for this specific company
@@ -408,9 +421,14 @@ async def scrape_a16z_jobs():
                 
                 if scraping_status['is_running']:
                     scraping_status['message'] = f'Scraping completed! Total jobs: {total_jobs_scraped}'
-                    print(f"\n🎉 Scraping completed! Total jobs scraped: {total_jobs_scraped}")
+                    print(f"\n🎉 Scraping completed!")
+                    print(f"   📊 Total jobs scraped: {total_jobs_scraped}")
+                    print(f"   ⏭️  Companies skipped (already complete): {skipped_companies}")
+                    print(f"   🏢 Companies processed: {len(companies) - skipped_companies}")
                 else:
-                    print(f"\n🛑 Scraping stopped. Jobs scraped: {total_jobs_scraped}")
+                    print(f"\n🛑 Scraping stopped.")
+                    print(f"   📊 Jobs scraped: {total_jobs_scraped}")
+                    print(f"   ⏭️  Companies skipped: {skipped_companies}")
                 
             except Exception as e:
                 scraping_status['message'] = f'Error during scraping: {e}'
@@ -3014,6 +3032,45 @@ def extract_source_from_url(url):
     except Exception:
         pass
     return 'Other'
+
+def should_scrape_company(company_name):
+    """Check if a company needs to be scraped based on existing data"""
+    try:
+        # Get all jobs for this company
+        company_jobs = Job.query.filter_by(company=company_name).all()
+        
+        # If no jobs exist, definitely scrape
+        if not company_jobs:
+            return True, "no existing jobs"
+        
+        # Check if any jobs are incomplete or stale
+        now = datetime.utcnow()
+        incomplete_count = 0
+        stale_count = 0
+        
+        for job in company_jobs:
+            # Check for incomplete data
+            if not job.about_job or len(job.about_job) < 200:
+                incomplete_count += 1
+            elif not job.location or not job.employment_type:
+                incomplete_count += 1
+            # Check for stale data (more than 7 days old)
+            elif job.scraped_at and (now - job.scraped_at).days > 7:
+                stale_count += 1
+        
+        # If we have any incomplete or stale jobs, scrape this company
+        if incomplete_count > 0:
+            return True, f"{incomplete_count} incomplete job(s)"
+        if stale_count > 0:
+            return True, f"{stale_count} stale job(s) (7+ days old)"
+        
+        # All jobs are complete and recent
+        return False, f"all {len(company_jobs)} job(s) are complete and recent"
+        
+    except Exception as e:
+        print(f"Error checking company status: {e}")
+        # If there's an error, scrape to be safe
+        return True, "error checking status"
 
 def save_job_to_db(job_data):
     """Save comprehensive job data to the database"""

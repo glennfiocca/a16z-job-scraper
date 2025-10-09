@@ -18,74 +18,101 @@ class AIParser:
         # Increase limit to 10000 chars to capture more content
         truncated_content = raw_content[:10000]
         
-        prompt = f"""
-You are an expert at extracting information from job postings. Extract the EXACT TEXT from the listing - DO NOT SUMMARIZE OR PARAPHRASE.
+        system_prompt = """You are an expert at extracting structured information from job postings.
+
+SECTION MAPPING GUIDE - Different ATS platforms use different section headers:
+
+ABOUT COMPANY (about_company field):
+- Greenhouse/Lever: "About [Company]", "About Us", "Who We Are", "Company Overview"
+- Ashby: "🚀 Join...", "About [Company]", company description paragraphs at the top
+- General: Any introductory paragraphs describing the company's mission, products, culture, or history
+
+ROLE/RESPONSIBILITIES (about_job field):
+- Greenhouse/Lever: "About the Role", "The Role", "What You'll Do", "Responsibilities", "Key Responsibilities", "Day-to-Day"
+- Ashby: "💻 Role", "💻 The Role", "What You'll Do"
+- General: Bullet points or paragraphs describing daily tasks, duties, and what the person will do in this position
+
+QUALIFICATIONS (qualifications field):
+- Greenhouse/Lever: "About You", "Requirements", "Qualifications", "What We're Looking For", "You Have"
+- Ashby: "👋 You", "What You Bring", "Requirements"
+- General: Skills, experience, education requirements - what the candidate MUST HAVE
+
+BENEFITS (benefits field):
+- Greenhouse/Lever: "Benefits & Perks", "What We Offer", "Perks", "Benefits"
+- Ashby: "🎁 Benefits", "💼 Perks", "What We Offer"
+- General: Healthcare, PTO, retirement, perks, work-from-home allowances, parental leave, etc.
+
+SALARY (salary_range field):
+- Look for: "Compensation", "Salary Range", "$XXK - $YYK", "Base Salary", dollar amounts with "K" or "000"
+- Ashby: "💸 Compensation", "💰 Salary" or under the "Compensation" section
+- Important: Extract the ACTUAL salary numbers/range, not just "competitive" or "based on experience"
+- Include equity mentions: "equity", "stock options", "RSUs" if part of the compensation
+
+EXTRACTION RULES:
+1. Copy text VERBATIM - do not summarize, paraphrase, or reword
+2. Each field should capture its COMPLETE section, including all bullet points and paragraphs
+3. about_job = What the job IS + What the person WILL DO (tasks, responsibilities, duties)
+4. qualifications = What the candidate MUST HAVE (skills, experience, requirements)
+5. Salary can appear in BOTH salary_range AND benefits - this is ALLOWED and EXPECTED
+6. If a section has multiple paragraphs, include ALL of them
+7. Preserve ALL bullet points - do not skip or omit any
+
+OUTPUT FORMAT:
+Return ONLY a valid JSON object with these exact fields (no markdown, no explanation):
+{
+    "title": "exact job title",
+    "company": "exact company name", 
+    "about_company": "verbatim company description",
+    "location": "primary city, state/country",
+    "alternate_locations": "other locations as comma-separated string or null",
+    "employment_type": "Full-time/Part-time/Contract/Internship",
+    "about_job": "verbatim role description and ALL responsibilities",
+    "qualifications": "verbatim requirements and qualifications", 
+    "benefits": "verbatim complete benefits section",
+    "salary_range": "exact salary range with equity info if mentioned",
+    "work_environment": "Remote/Hybrid/Onsite or null"
+}"""
+
+        user_prompt = f"""Extract job information from this posting.
 
 Job URL: {job_url}
-Raw Content: {truncated_content}
 
-Extract and return ONLY a JSON object with these exact fields:
-{{
-    "title": "Job title (clean, no extra text)",
-    "company": "Company name (clean, no extra text)",
-    "about_company": "Copy the VERBATIM text about the company from the listing - company description, mission, what they do, their story, etc. This is usually in an 'About Us' or 'About the Company' section. It is typically toward the top of listings, as well. Do not summarize.", 
-    "location": "Primary location (city, state/country). Can be remote, but only for fully-remote jobs that do not have a location listed.",
-    "alternate_locations": "Other locations as comma-separated string (or null if none). Remote can be listed here if it is an option.",
-    "employment_type": "Full-time, Part-time, Contract, Internship, etc. Almost all jobs should be full-time, under the current scraping logic.",
-    "about_job": "CRITICAL: Copy ALL details about the role VERBATIM. This field MUST include: (1) Any 'About the Role'/'About this role' intro paragraphs, (2) The COMPLETE 'Responsibilities' section with ALL bullet points, (3) Any 'What You'll Do'/'Key Responsibilities'/'Duties' sections with ALL details. This field describes what the job IS and what the person WILL DO. DO NOT include qualifications/requirements here.",
-    "qualifications": "Copy ALL qualifications/requirements VERBATIM from sections like 'About You', 'Requirements', 'Qualifications', 'What we're looking for', etc. Include exact text with all bullet points. DO NOT duplicate this content in the about_job field above.",
-    "benefits": "CRITICAL: Copy the COMPLETE benefits section VERBATIM. This includes: (1) ALL text from 'Benefits & Perks'/'Benefits'/'Perks'/'Compensation' sections, (2) Salary explanations and equity details, (3) ALL listed benefits like Healthcare, PTO, Insurance, Retirement, Parental Leave, Professional Development, Relocation, Commuter Benefits, etc. Include ENTIRE paragraphs and ALL bullet points. DO NOT summarize or shorten.",
-    "salary_range": "COMPLETE salary range exactly as written (e.g. '$180K - $260K + equity'). Include equity/stock info if mentioned.",
-    "work_environment": "Remote, Hybrid, Onsite, or null if unclear"
-}}
+EXTRACTION STEPS:
+1. IDENTIFY sections by their headers (look for emoji headers on Ashby, text headers on others)
+2. MAP each section to the correct JSON field using the Section Mapping Guide
+3. COPY the complete section text verbatim into that field
 
-CRITICAL EXTRACTION RULES - ZERO DUPLICATION ALLOWED:
-- Copy text EXACTLY as written - DO NOT summarize, paraphrase, or reword
-- **ZERO DUPLICATION**: Each sentence/bullet point appears in ONLY ONE field, never repeated
+Raw Job Content:
+{truncated_content}
 
-**ABOUT_JOB FIELD - MANDATORY RESPONSIBILITIES INCLUSION**:
-- The about_job field MUST contain the complete role description including ALL responsibilities
-- **RESPONSIBILITIES ARE REQUIRED**: Any section titled "Responsibilities", "What You'll Do", "Key Responsibilities", "Duties", "You Will", "Your Responsibilities", "Day to Day", etc. MUST be included in about_job
-- about_job = Role overview + Role description + COMPLETE Responsibilities section + All day-to-day tasks + What the person will do
-- If you see a "Responsibilities" section, you MUST copy all of its content verbatim into the about_job field
-- DO NOT skip or omit responsibility bullet points - include them ALL
+Extract and return the JSON object now:"""
 
-**STRICT SEGMENTATION RULES**:
-- about_job = What the job IS + What the candidate WILL DO (responsibilities, tasks, duties)
-- qualifications = What the candidate MUST HAVE (skills, experience, requirements)
-- **IMPORTANT - "About You" sections ALWAYS go in qualifications, NEVER in about_job**
-- **IMPORTANT - "Requirements" sections ALWAYS go in qualifications, NEVER in about_job**
-- **IMPORTANT - If a section describes what skills/qualifications are needed, it goes in qualifications ONLY, not about_job**
-
-**BENEFITS FIELD - MANDATORY COMPLETE EXTRACTION**:
-- The benefits field MUST contain the COMPLETE benefits/compensation information
-- **BENEFITS ARE CRITICAL**: Any section titled "Benefits & Perks", "Benefits", "Perks", "What We Offer", "Compensation", "Total Rewards", etc. MUST be fully extracted
-- Benefits often include: Salary explanations, Equity/Stock details, Healthcare, Dental, Vision, Insurance, PTO/Time Off, Parental Leave, Mental Health Resources, Professional Development, Relocation Assistance, Commuter Benefits, Retirement/401k, etc.
-- **IMPORTANT**: Benefits sections often contain both introductory paragraphs AND lists - include BOTH in their entirety
-- If benefits are mentioned in paragraph form (e.g., "Additionally, Anduril offers top-tier benefits for full-time employees, including: Healthcare Benefits, Income Protection..."), copy the ENTIRE paragraph verbatim
-- DO NOT skip any benefit items or shorten benefit descriptions
-
-**VERIFICATION STEPS**:
-1. Check that the about_job field includes ALL responsibilities sections (Responsibilities, What You'll Do, Key Responsibilities, etc.)
-2. Check that the benefits field includes the COMPLETE benefits section with all paragraphs and lists
-3. Check that NO text appears in both about_job and qualifications. If it does, remove it from the less relevant field
-4. Verify qualifications contains only requirements/skills, NOT what the person will do on the job
-
-- Return ONLY valid JSON
-"""
-
+        content = None
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
                 temperature=0.1,
-                max_tokens=4000  # Increased to capture complete job descriptions including Key Responsibilities sections
+                max_tokens=4000
             )
             
             # Parse the JSON response
             content = response.choices[0].message.content
             if not content:
                 raise ValueError("Empty response from AI")
+            
+            # Clean up potential markdown code blocks
+            content = content.strip()
+            if content.startswith("```json"):
+                content = content[7:]
+            if content.startswith("```"):
+                content = content[3:]
+            if content.endswith("```"):
+                content = content[:-3]
+            content = content.strip()
             
             result = json.loads(content)
             
@@ -97,6 +124,8 @@ CRITICAL EXTRACTION RULES - ZERO DUPLICATION ALLOWED:
             
         except json.JSONDecodeError as e:
             print(f"JSON decode error for {job_url}: {e}")
+            if content:
+                print(f"Raw response: {content[:500]}...")
             return self._get_fallback_result()
         except Exception as e:
             print(f"AI parsing error for {job_url}: {e}")

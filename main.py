@@ -44,6 +44,9 @@ PIPELINE_API_KEY = os.environ.get('PIPELINE_API_KEY', 'sPqH575yX54u1x72G2sLoUhc1
 def send_job_to_pipeline(job_data):
     """Send job data to Pipeline API"""
     try:
+        # Debug: Print the API URL being used
+        print(f"🔗 Using Pipeline API URL: {PIPELINE_API_URL}")
+        
         # Convert job data to Pipeline format
         pipeline_job = {
             'title': job_data.get('title', 'Unknown Title'),

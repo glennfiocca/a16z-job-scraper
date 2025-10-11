@@ -77,10 +77,18 @@ def send_job_to_pipeline(job_data):
             timeout=30
         )
         
+        print(f"🔍 Pipeline API Response: Status {response.status_code}")
+        print(f"🔍 Pipeline API Response Body: {response.text[:200]}...")
+        
         if response.status_code == 200:
-            result = response.json()
-            print(f"✅ Sent job to Pipeline: {job_data.get('title', 'Unknown Title')} at {job_data.get('company', 'Unknown')}")
-            return True
+            try:
+                result = response.json()
+                print(f"✅ Sent job to Pipeline: {job_data.get('title', 'Unknown Title')} at {job_data.get('company', 'Unknown')}")
+                return True
+            except json.JSONDecodeError as e:
+                print(f"❌ Pipeline API returned invalid JSON: {e}")
+                print(f"❌ Response body: {response.text}")
+                return False
         else:
             print(f"❌ Failed to send job to Pipeline: {response.status_code} - {response.text}")
             return False

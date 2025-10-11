@@ -38,7 +38,7 @@ def save_progress(company_index, total_companies):
         print(f"Error saving progress: {e}")
 
 # Pipeline API Configuration
-PIPELINE_API_URL = os.environ.get('PIPELINE_API_URL', 'http://localhost:5000')
+PIPELINE_API_URL = os.environ.get('PIPELINE_API_URL', 'https://atpipeline.com')
 PIPELINE_API_KEY = os.environ.get('PIPELINE_API_KEY', 'sPqH575yX54u1x72G2sLoUhc18nsqUJcqnMq3cYR')
 
 def send_job_to_pipeline(job_data):

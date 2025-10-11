@@ -14,8 +14,9 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # Import the Pipeline functions
 from main import send_job_to_pipeline, send_batch_to_pipeline, PIPELINE_API_URL, PIPELINE_API_KEY
 
-# Set the API key for testing
+# Set the API key and URL for testing
 os.environ['PIPELINE_API_KEY'] = 'sPqH575yX54u1x72G2sLoUhc18nsqUJcqnMq3cYR'
+os.environ['PIPELINE_API_URL'] = 'https://atpipeline.com'
 
 def test_single_job():
     """Test sending a single job to Pipeline"""

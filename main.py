@@ -47,6 +47,14 @@ def send_job_to_pipeline(job_data):
         # Debug: Print the API URL being used
         print(f"🔗 Using Pipeline API URL: {PIPELINE_API_URL}")
         
+        # Helper function to convert comma-separated strings to arrays
+        def string_to_array(value):
+            if not value:
+                return []
+            if isinstance(value, list):
+                return value
+            return [item.strip() for item in str(value).split(',') if item.strip()]
+        
         # Convert job data to Pipeline format
         pipeline_job = {
             'title': job_data.get('title', 'Unknown Title'),
@@ -54,13 +62,13 @@ def send_job_to_pipeline(job_data):
             'aboutJob': job_data.get('about_job', ''),
             'salaryRange': job_data.get('salary_range', ''),
             'location': job_data.get('location', ''),
-            'qualifications': job_data.get('qualifications', ''),
+            'qualifications': string_to_array(job_data.get('qualifications', '')),
             'source': 'A16Z Jobs',
             'sourceUrl': job_data.get('source_url', ''),
             'employmentType': job_data.get('employment_type', 'full-time'),
             'postedDate': job_data.get('posted_date', datetime.now().isoformat()),
             'aboutCompany': job_data.get('about_company', ''),
-            'alternateLocations': job_data.get('alternate_locations', '')
+            'alternateLocations': string_to_array(job_data.get('alternate_locations', ''))
         }
         
         # Send to Pipeline API
@@ -100,6 +108,14 @@ def send_job_to_pipeline(job_data):
 def send_batch_to_pipeline(jobs_data):
     """Send multiple jobs to Pipeline API in batch"""
     try:
+        # Helper function to convert comma-separated strings to arrays
+        def string_to_array(value):
+            if not value:
+                return []
+            if isinstance(value, list):
+                return value
+            return [item.strip() for item in str(value).split(',') if item.strip()]
+        
         # Convert jobs data to Pipeline format
         pipeline_jobs = []
         for job_data in jobs_data:
@@ -109,13 +125,13 @@ def send_batch_to_pipeline(jobs_data):
                 'aboutJob': job_data.get('about_job', ''),
                 'salaryRange': job_data.get('salary_range', ''),
                 'location': job_data.get('location', ''),
-                'qualifications': job_data.get('qualifications', ''),
+                'qualifications': string_to_array(job_data.get('qualifications', '')),
                 'source': 'A16Z Jobs',
                 'sourceUrl': job_data.get('source_url', ''),
                 'employmentType': job_data.get('employment_type', 'full-time'),
                 'postedDate': job_data.get('posted_date', datetime.now().isoformat()),
                 'aboutCompany': job_data.get('about_company', ''),
-                'alternateLocations': job_data.get('alternate_locations', '')
+                'alternateLocations': string_to_array(job_data.get('alternate_locations', ''))
             }
             pipeline_jobs.append(pipeline_job)
         

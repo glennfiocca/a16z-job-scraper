@@ -42,8 +42,9 @@ jobs:
         echo "SCRAPER_BATCH_SIZE=${{ github.event.inputs.batch_size || '20' }}" >> $GITHUB_ENV
         echo "DATABASE_URL=sqlite:///jobs.db" >> $GITHUB_ENV
         echo "FLASK_SECRET_KEY=your-secret-key-here" >> $GITHUB_ENV
-        echo "PIPELINE_API_URL=${{ secrets.PIPELINE_API_URL || 'http://localhost:5000' }}" >> $GITHUB_ENV
-        echo "PIPELINE_API_KEY=${{ secrets.PIPELINE_API_KEY || 'pipeline-integration-key-2024' }}" >> $GITHUB_ENV
+        echo "PIPELINE_API_URL=${{ secrets.PIPELINE_API_URL || 'https://atpipeline.com' }}" >> $GITHUB_ENV
+        echo "PIPELINE_API_KEY=${{ secrets.PIPELINE_API_KEY || 'sPqH575yX54u1x72G2sLoUhc18nsqUJcqnMq3cYR' }}" >> $GITHUB_ENV
+        echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY || '' }}" >> $GITHUB_ENV
         
     - name: Run scraper
       run: |

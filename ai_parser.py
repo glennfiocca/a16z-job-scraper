@@ -9,9 +9,12 @@ class AIParser:
     def __init__(self):
         api_key = os.getenv('OPENAI_API_KEY')
         if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable not set. Please add it as a secret in Replit.")
-        self.client = AsyncOpenAI(api_key=api_key)
-        self.model = "gpt-4o-mini"  # More capable and cheaper than gpt-3.5-turbo
+            print("⚠️  OPENAI_API_KEY environment variable not set. AI parsing will be disabled.")
+            self.client = None
+            self.model = None
+        else:
+            self.client = AsyncOpenAI(api_key=api_key)
+            self.model = "gpt-4o-mini"  # More capable and cheaper than gpt-3.5-turbo
     
     @staticmethod
     def remove_emojis(text: str) -> str:
@@ -35,6 +38,18 @@ class AIParser:
         
     async def parse_greenhouse_job(self, raw_content: str, job_url: str) -> Dict[str, Any]:
         """Parse job posting using AI with comprehensive extraction"""
+        
+        # Check if AI parsing is available
+        if not self.client:
+            print("⚠️  AI parsing not available (no API key). Returning empty result.")
+            return {
+                "about_company": None,
+                "responsibilities": None,
+                "qualifications": None,
+                "benefits": None,
+                "salary_range": None,
+                "work_environment": None
+            }
         
         # Increase limit to 10000 chars to capture more content
         truncated_content = raw_content[:10000]
@@ -181,6 +196,18 @@ Extract and return the JSON object now:"""
     async def parse_job_safe(self, raw_content: str, job_url: str, platform: str = "greenhouse") -> Dict[str, Any]:
         """Safely parse job with error handling and fallbacks"""
         try:
+            # Check if AI parsing is available
+            if not self.client:
+                print("⚠️  AI parsing not available (no API key). Using manual parsing fallback.")
+                return {
+                    "about_company": None,
+                    "responsibilities": None,
+                    "qualifications": None,
+                    "benefits": None,
+                    "salary_range": None,
+                    "work_environment": None
+                }
+            
             if platform.lower() == "greenhouse":
                 return await self.parse_greenhouse_job(raw_content, job_url)
             else:

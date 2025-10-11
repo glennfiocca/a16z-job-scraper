@@ -1,0 +1,62 @@
+name: A16Z Jobs Scraper
+
+on:
+  schedule:
+    # Run every 3 hours (adjust as needed)
+    - cron: '0 */3 * * *'
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: 'Number of companies to process per batch'
+        required: false
+        default: '20'
+        type: string
+      resume:
+        description: 'Resume from last position'
+        required: false
+        default: 'true'
+        type: boolean
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install playwright flask sqlalchemy
+        playwright install chromium
+        
+    - name: Set up environment variables
+      run: |
+        echo "SCRAPER_BATCH_SIZE=${{ github.event.inputs.batch_size || '20' }}" >> $GITHUB_ENV
+        echo "DATABASE_URL=sqlite:///jobs.db" >> $GITHUB_ENV
+        echo "FLASK_SECRET_KEY=your-secret-key-here" >> $GITHUB_ENV
+        
+    - name: Run scraper
+      run: |
+        python main.py ${{ github.event.inputs.batch_size || '20' }} ${{ github.event.inputs.resume || 'true' }}
+        
+    - name: Upload progress file
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: scraping-progress
+        path: scraping_progress.json
+        
+    - name: Upload database
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: jobs-database
+        path: jobs.db

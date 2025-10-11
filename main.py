@@ -9,6 +9,32 @@ from datetime import datetime
 # Global reference to scraping status (set by app.py)
 scraping_status = None
 
+# Progress tracking file
+PROGRESS_FILE = 'scraping_progress.json'
+
+def load_progress():
+    """Load progress from file"""
+    try:
+        if os.path.exists(PROGRESS_FILE):
+            with open(PROGRESS_FILE, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"Error loading progress: {e}")
+    return {'last_processed_company': 0, 'total_companies': 0}
+
+def save_progress(company_index, total_companies):
+    """Save progress to file"""
+    try:
+        progress = {
+            'last_processed_company': company_index,
+            'total_companies': total_companies,
+            'last_updated': datetime.now().isoformat()
+        }
+        with open(PROGRESS_FILE, 'w') as f:
+            json.dump(progress, f)
+    except Exception as e:
+        print(f"Error saving progress: {e}")
+
 def set_scraping_status(status_dict):
     """Set the global scraping status dictionary from app.py"""
     global scraping_status
@@ -292,9 +318,13 @@ def create_app():
     db.init_app(app)
     return app
 
-async def scrape_a16z_jobs():
-    """Scrape job listings from a16z jobs website by company"""
+async def scrape_a16z_jobs(batch_size=None, resume_from_progress=True):
+    """Scrape job listings from a16z jobs website by company with batch processing"""
     app = create_app()
+    
+    # Get batch size from environment variable or use default
+    if batch_size is None:
+        batch_size = int(os.environ.get('SCRAPER_BATCH_SIZE', '20'))
     
     with app.app_context():
         # Create database tables
@@ -302,6 +332,12 @@ async def scrape_a16z_jobs():
         
         # Import global status tracking
         from app import scraping_status
+        
+        # Load previous progress if resuming
+        progress = load_progress() if resume_from_progress else {'last_processed_company': 0, 'total_companies': 0}
+        start_company_index = progress['last_processed_company']
+        
+        print(f"🚀 Starting batch scraping: batch_size={batch_size}, resume_from={start_company_index}")
         
         # Ensure we have the latest status
         print(f"Initial scraping status: {scraping_status}")
@@ -327,13 +363,22 @@ async def scrape_a16z_jobs():
                     print("❌ No companies found - this indicates a problem with the company discovery")
                     return
                 
-                # Step 2: Process each company individually
+                # Step 2: Process companies in batches
                 total_jobs_scraped = 0
                 skipped_companies = 0
                 
-                for i, company_info in enumerate(companies):
+                # Calculate batch range
+                end_company_index = min(start_company_index + batch_size, len(companies))
+                companies_to_process = companies[start_company_index:end_company_index]
+                
+                print(f"📊 Processing companies {start_company_index + 1} to {end_company_index} of {len(companies)}")
+                print(f"🎯 Batch size: {len(companies_to_process)} companies")
+                
+                for i, company_info in enumerate(companies_to_process):
+                    global_company_index = start_company_index + i
+                    
                     # Check if scraping should stop
-                    print(f"Checking status before company {i+1}: is_running={scraping_status['is_running']}")
+                    print(f"Checking status before company {global_company_index + 1}: is_running={scraping_status['is_running']}")
                     if not scraping_status['is_running']:
                         print("🛑 Scraping stopped by user request")
                         break
@@ -343,17 +388,20 @@ async def scrape_a16z_jobs():
                     
                     # Update status
                     scraping_status['current_company'] = company_name
-                    scraping_status['message'] = f'Processing {company_name} ({i+1}/{len(companies)})'
+                    scraping_status['message'] = f'Processing {company_name} ({global_company_index + 1}/{len(companies)})'
                     
-                    print(f"\n🏢 Processing company {i+1}/{len(companies)}: {company_name}")
+                    print(f"\n🏢 Processing company {global_company_index + 1}/{len(companies)}: {company_name}")
                     print(f"Company URL: {company_url}")
+                    
+                    # Save progress after each company
+                    save_progress(global_company_index + 1, len(companies))
                     
                     # Check if this company needs scraping
                     needs_scraping, reason = should_scrape_company(company_name)
                     
                     if not needs_scraping:
                         print(f"⏭️  Skipping {company_name}: {reason}")
-                        scraping_status['completed_companies'] = i + 1
+                        scraping_status['completed_companies'] = global_company_index + 1
                         skipped_companies += 1
                         continue
                     else:
@@ -412,7 +460,7 @@ async def scrape_a16z_jobs():
                                 continue
                         
                         # Update completed companies count
-                        scraping_status['completed_companies'] = i + 1
+                        scraping_status['completed_companies'] = global_company_index + 1
                         print(f"✅ Completed {company_name}: {len(company_jobs)} jobs processed")
                         
                     except Exception as e:
@@ -420,11 +468,20 @@ async def scrape_a16z_jobs():
                         continue
                 
                 if scraping_status['is_running']:
-                    scraping_status['message'] = f'Scraping completed! Total jobs: {total_jobs_scraped}'
-                    print(f"\n🎉 Scraping completed!")
-                    print(f"   📊 Total jobs scraped: {total_jobs_scraped}")
+                    batch_completed = end_company_index - start_company_index
+                    scraping_status['message'] = f'Batch completed! Jobs: {total_jobs_scraped}, Companies: {batch_completed}'
+                    print(f"\n🎉 Batch scraping completed!")
+                    print(f"   📊 Total jobs scraped in this batch: {total_jobs_scraped}")
                     print(f"   ⏭️  Companies skipped (already complete): {skipped_companies}")
-                    print(f"   🏢 Companies processed: {len(companies) - skipped_companies}")
+                    print(f"   🏢 Companies processed in this batch: {batch_completed - skipped_companies}")
+                    print(f"   📈 Progress: {end_company_index}/{len(companies)} companies")
+                    
+                    # Check if we've completed all companies
+                    if end_company_index >= len(companies):
+                        print(f"   🎯 All companies completed! Resetting progress for next full cycle.")
+                        save_progress(0, len(companies))  # Reset for next full cycle
+                    else:
+                        print(f"   ⏭️  Next batch will start from company {end_company_index + 1}")
                 else:
                     print(f"\n🛑 Scraping stopped.")
                     print(f"   📊 Jobs scraped: {total_jobs_scraped}")
@@ -3207,5 +3264,22 @@ def save_job_to_db(job_data):
         db.session.rollback()
 
 if __name__ == "__main__":
+    import sys
+    
+    # Parse command line arguments
+    batch_size = None
+    resume = True
+    
+    if len(sys.argv) > 1:
+        try:
+            batch_size = int(sys.argv[1])
+            print(f"Using batch size from command line: {batch_size}")
+        except ValueError:
+            print(f"Invalid batch size: {sys.argv[1]}. Using default.")
+    
+    if len(sys.argv) > 2:
+        resume = sys.argv[2].lower() in ['true', '1', 'yes', 'y']
+        print(f"Resume from progress: {resume}")
+    
     print("Starting a16z jobs scraper...")
-    asyncio.run(scrape_a16z_jobs())
+    asyncio.run(scrape_a16z_jobs(batch_size=batch_size, resume_from_progress=resume))

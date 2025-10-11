@@ -1,6 +1,8 @@
 import asyncio
 import os
 import re
+import json
+import requests
 from playwright.async_api import async_playwright
 from flask import Flask
 from models import db, Job
@@ -34,6 +36,103 @@ def save_progress(company_index, total_companies):
             json.dump(progress, f)
     except Exception as e:
         print(f"Error saving progress: {e}")
+
+# Pipeline API Configuration
+PIPELINE_API_URL = os.environ.get('PIPELINE_API_URL', 'http://localhost:5000')
+PIPELINE_API_KEY = os.environ.get('PIPELINE_API_KEY', 'pipeline-integration-key-2024')
+
+def send_job_to_pipeline(job_data):
+    """Send job data to Pipeline API"""
+    try:
+        # Convert job data to Pipeline format
+        pipeline_job = {
+            'title': job_data.get('title', 'Unknown Title'),
+            'company': job_data.get('company', 'Unknown Company'),
+            'aboutJob': job_data.get('about_job', ''),
+            'salaryRange': job_data.get('salary_range', ''),
+            'location': job_data.get('location', ''),
+            'qualifications': job_data.get('qualifications', ''),
+            'source': 'A16Z Jobs',
+            'sourceUrl': job_data.get('source_url', ''),
+            'employmentType': job_data.get('employment_type', 'full-time'),
+            'postedDate': job_data.get('posted_date', datetime.now().isoformat()),
+            'aboutCompany': job_data.get('about_company', ''),
+            'alternateLocations': job_data.get('alternate_locations', '')
+        }
+        
+        # Send to Pipeline API
+        response = requests.post(
+            f"{PIPELINE_API_URL}/api/webhook/jobs",
+            headers={
+                'Content-Type': 'application/json',
+                'X-API-Key': PIPELINE_API_KEY
+            },
+            json={
+                'jobs': [pipeline_job],
+                'source': 'A16Z Scraper'
+            },
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            print(f"✅ Sent job to Pipeline: {job_data.get('title', 'Unknown Title')} at {job_data.get('company', 'Unknown')}")
+            return True
+        else:
+            print(f"❌ Failed to send job to Pipeline: {response.status_code} - {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error sending job to Pipeline: {e}")
+        return False
+
+def send_batch_to_pipeline(jobs_data):
+    """Send multiple jobs to Pipeline API in batch"""
+    try:
+        # Convert jobs data to Pipeline format
+        pipeline_jobs = []
+        for job_data in jobs_data:
+            pipeline_job = {
+                'title': job_data.get('title', 'Unknown Title'),
+                'company': job_data.get('company', 'Unknown Company'),
+                'aboutJob': job_data.get('about_job', ''),
+                'salaryRange': job_data.get('salary_range', ''),
+                'location': job_data.get('location', ''),
+                'qualifications': job_data.get('qualifications', ''),
+                'source': 'A16Z Jobs',
+                'sourceUrl': job_data.get('source_url', ''),
+                'employmentType': job_data.get('employment_type', 'full-time'),
+                'postedDate': job_data.get('posted_date', datetime.now().isoformat()),
+                'aboutCompany': job_data.get('about_company', ''),
+                'alternateLocations': job_data.get('alternate_locations', '')
+            }
+            pipeline_jobs.append(pipeline_job)
+        
+        # Send batch to Pipeline API
+        response = requests.post(
+            f"{PIPELINE_API_URL}/api/batch/jobs",
+            headers={
+                'Content-Type': 'application/json',
+                'X-API-Key': PIPELINE_API_KEY
+            },
+            json={
+                'jobs': pipeline_jobs,
+                'source': 'A16Z Scraper'
+            },
+            timeout=60
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            print(f"✅ Sent batch to Pipeline: {result.get('created', 0)} jobs created, {result.get('skipped', 0)} skipped")
+            return True
+        else:
+            print(f"❌ Failed to send batch to Pipeline: {response.status_code} - {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error sending batch to Pipeline: {e}")
+        return False
 
 def set_scraping_status(status_dict):
     """Set the global scraping status dictionary from app.py"""
@@ -3258,6 +3357,9 @@ def save_job_to_db(job_data):
         
         db.session.add(job)
         db.session.commit()
+        
+        # Also send to Pipeline API
+        send_job_to_pipeline(job_data)
         
     except Exception as e:
         print(f"Error saving job to database: {e}")

@@ -47,28 +47,23 @@ def send_job_to_pipeline(job_data):
         # Debug: Print the API URL being used
         print(f"🔗 Using Pipeline API URL: {PIPELINE_API_URL}")
         
-        # Helper function to convert comma-separated strings to arrays
-        def string_to_array(value):
-            if not value:
-                return []
-            if isinstance(value, list):
-                return value
-            return [item.strip() for item in str(value).split(',') if item.strip()]
-        
         # Convert job data to Pipeline format
         pipeline_job = {
             'title': job_data.get('title', 'Unknown Title'),
             'company': job_data.get('company', 'Unknown Company'),
             'aboutJob': job_data.get('about_job', ''),
             'salaryRange': job_data.get('salary_range', ''),
+            'salaryMin': job_data.get('salary_min'),
+            'salaryMax': job_data.get('salary_max'),
             'location': job_data.get('location', ''),
-            'qualifications': string_to_array(job_data.get('qualifications', '')),
-            'source': 'A16Z Jobs',
+            'qualifications': job_data.get('qualifications', ''),
+            'benefits': job_data.get('benefits', ''),
+            'source': job_data.get('source', 'A16Z Jobs'),
             'sourceUrl': job_data.get('source_url', ''),
             'employmentType': job_data.get('employment_type', 'full-time'),
             'postedDate': job_data.get('posted_date', datetime.now().isoformat()),
             'aboutCompany': job_data.get('about_company', ''),
-            'alternateLocations': string_to_array(job_data.get('alternate_locations', ''))
+            'alternateLocations': job_data.get('alternate_locations', '')
         }
         
         # Send to Pipeline API
@@ -80,7 +75,7 @@ def send_job_to_pipeline(job_data):
             },
             json={
                 'jobs': [pipeline_job],
-                'source': 'A16Z Scraper'
+                'source': job_data.get('source', 'A16Z Jobs')
             },
             timeout=30
         )
@@ -108,14 +103,6 @@ def send_job_to_pipeline(job_data):
 def send_batch_to_pipeline(jobs_data):
     """Send multiple jobs to Pipeline API in batch"""
     try:
-        # Helper function to convert comma-separated strings to arrays
-        def string_to_array(value):
-            if not value:
-                return []
-            if isinstance(value, list):
-                return value
-            return [item.strip() for item in str(value).split(',') if item.strip()]
-        
         # Convert jobs data to Pipeline format
         pipeline_jobs = []
         for job_data in jobs_data:
@@ -124,14 +111,17 @@ def send_batch_to_pipeline(jobs_data):
                 'company': job_data.get('company', 'Unknown Company'),
                 'aboutJob': job_data.get('about_job', ''),
                 'salaryRange': job_data.get('salary_range', ''),
+                'salaryMin': job_data.get('salary_min'),
+                'salaryMax': job_data.get('salary_max'),
                 'location': job_data.get('location', ''),
-                'qualifications': string_to_array(job_data.get('qualifications', '')),
-                'source': 'A16Z Jobs',
+                'qualifications': job_data.get('qualifications', ''),
+                'benefits': job_data.get('benefits', ''),
+                'source': job_data.get('source', 'A16Z Jobs'),
                 'sourceUrl': job_data.get('source_url', ''),
                 'employmentType': job_data.get('employment_type', 'full-time'),
                 'postedDate': job_data.get('posted_date', datetime.now().isoformat()),
                 'aboutCompany': job_data.get('about_company', ''),
-                'alternateLocations': string_to_array(job_data.get('alternate_locations', ''))
+                'alternateLocations': job_data.get('alternate_locations', '')
             }
             pipeline_jobs.append(pipeline_job)
         
@@ -144,7 +134,7 @@ def send_batch_to_pipeline(jobs_data):
             },
             json={
                 'jobs': pipeline_jobs,
-                'source': 'A16Z Scraper'
+                'source': jobs_data[0].get('source', 'A16Z Jobs') if jobs_data else 'A16Z Jobs'
             },
             timeout=60
         )
@@ -3352,7 +3342,8 @@ def save_job_to_db(job_data):
         job_data['employment_type'] = 'Full time'
         
         # Parse and standardize salary data
-        if salary_text:
+        salary_text = job_data.get('salary_range', '')
+        if salary_text and salary_text.strip() not in ['', 'NULL', 'None']:
             standardized_salary = parser.standardize_salary_range(salary_text)
             job_data['salary_range'] = standardized_salary
             

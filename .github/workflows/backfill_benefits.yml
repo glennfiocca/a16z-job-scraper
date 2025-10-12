@@ -1,0 +1,56 @@
+name: Backfill Benefits Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_urls:
+        description: 'Comma-separated list of job URLs to re-scrape for benefits'
+        required: true
+        type: string
+      dry_run:
+        description: 'Dry run mode (true/false)'
+        required: false
+        default: 'true'
+        type: string
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install playwright flask flask-sqlalchemy sqlalchemy requests openai
+        playwright install chromium
+        
+    - name: Set up environment variables
+      run: |
+        echo "PIPELINE_API_URL=https://atpipeline.com" >> $GITHUB_ENV
+        echo "PIPELINE_API_KEY=${{ secrets.PIPELINE_API_KEY || 'sPqH575yX54u1x72G2sLoUhc18nsqUJcqnMq3cYR' }}" >> $GITHUB_ENV
+        echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY || '' }}" >> $GITHUB_ENV
+        
+    - name: Create job URLs file
+      run: |
+        echo "${{ github.event.inputs.job_urls }}" > job_urls.txt
+        
+    - name: Run benefits backfill
+      run: |
+        python backfill_benefits_manual.py ${{ github.event.inputs.dry_run }}
+        
+    - name: Upload results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: backfill-results
+        path: |
+          job_urls.txt
+          backfill_*.log

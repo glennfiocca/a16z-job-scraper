@@ -95,24 +95,38 @@ EXTRACTION RULES:
 8. REMOVE ALL EMOJIS from extracted text - no emojis should appear in any field (strip out 🚀 💻 👋 🎁 💸 💰 💼 💛 and all other emojis)
 
 BULLET POINT FORMATTING RULES:
-CRITICAL: For qualifications, benefits, and about_job fields, format the content as bullet points using "• " prefix for each item.
+CRITICAL: For qualifications, benefits, and about_job fields, format the content as bullet points using "• " prefix for each item, with each bullet point on a SEPARATE LINE. Each bullet point must end with a newline character.
 
 QUALIFICATIONS FORMATTING:
 - Break down continuous text into individual bullet points
-- Each requirement, skill, or qualification should be a separate bullet point
+- Each requirement, skill, or qualification should be a separate bullet point on its own line
 - Include both required and preferred qualifications as separate bullets
-- Example: "• 5+ years of software development experience\n• Bachelor's Degree in Computer Science\n• Proficiency in JavaScript and Python"
+- MANDATORY: Each bullet point must be on a separate line (use actual line breaks, not \n)
+- Example format:
+• 5+ years of software development experience
+• Bachelor's Degree in Computer Science
+• Proficiency in JavaScript and Python
 
 BENEFITS FORMATTING:
 - Break down continuous text into individual bullet points
-- Each benefit, perk, or offering should be a separate bullet point
-- Example: "• Health, dental, and vision insurance\n• 401k matching\n• Flexible work arrangements\n• Professional development budget"
+- Each benefit, perk, or offering should be a separate bullet point on its own line
+- MANDATORY: Each bullet point must be on a separate line (use actual line breaks, not \n)
+- Example format:
+• Health, dental, and vision insurance
+• 401k matching
+• Flexible work arrangements
+• Professional development budget
 
 ABOUT_JOB FORMATTING:
 - Break down continuous text into individual bullet points
-- Each responsibility, task, or duty should be a separate bullet point
+- Each responsibility, task, or duty should be a separate bullet point on its own line
 - Focus on actionable items and key responsibilities
-- Example: "• Lead and scale critical growth initiatives\n• Design and own end-to-end systems\n• Work across product, marketing, and data science teams\n• Mentor other engineers"
+- MANDATORY: Each bullet point must be on a separate line (use actual line breaks, not \n)
+- Example format:
+• Lead and scale critical growth initiatives
+• Design and own end-to-end systems
+• Work across product, marketing, and data science teams
+• Mentor other engineers
 
 OUTPUT FORMAT:
 Return ONLY a valid JSON object with these exact fields (no markdown, no explanation):
@@ -185,6 +199,36 @@ Extract and return the JSON object now:"""
             for field in text_fields:
                 if result.get(field) and isinstance(result[field], str):
                     result[field] = self.remove_emojis(result[field])
+            
+            # Post-process bullet point fields to ensure proper newline formatting
+            bullet_fields = ['about_job', 'qualifications', 'benefits']
+            for field in bullet_fields:
+                if result.get(field):
+                    content = result[field]
+                    # Convert literal \n to actual newlines
+                    content = content.replace('\\n', '\n')
+                    # Also handle cases where \n might be escaped differently
+                    content = content.replace('\\\\n', '\n')
+                    # Fix bullet point formatting: ensure space after bullet and proper newlines
+                    if '•' in content:
+                        # Split by bullet points and reformat
+                        parts = content.split('•')
+                        if len(parts) > 1:
+                            formatted_parts = []
+                            for i, part in enumerate(parts):
+                                if i == 0:
+                                    # First part (before first bullet)
+                                    if part.strip():
+                                        formatted_parts.append(part.strip())
+                                else:
+                                    # Bullet point parts
+                                    if part.strip():
+                                        # Ensure space after bullet point
+                                        clean_part = part.strip()
+                                        if not clean_part.startswith(' '):
+                                            clean_part = ' ' + clean_part
+                                        formatted_parts.append('•' + clean_part)
+                            result[field] = '\n'.join(formatted_parts)
                 
             return result
             

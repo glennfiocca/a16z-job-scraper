@@ -66,6 +66,19 @@ def send_job_to_pipeline(job_data):
             'alternateLocations': job_data.get('alternate_locations', '')
         }
         
+        # Debug: Show what we're sending to Pipeline
+        print(f"🔍 Sending to Pipeline API:")
+        print(f"   Title: {pipeline_job['title']}")
+        print(f"   Company: {pipeline_job['company']}")
+        print(f"   Source: {pipeline_job['source']}")
+        print(f"   Location: {pipeline_job['location']}")
+        print(f"   Salary Range: {pipeline_job['salaryRange']}")
+        print(f"   Salary Min: {pipeline_job['salaryMin']}")
+        print(f"   Salary Max: {pipeline_job['salaryMax']}")
+        print(f"   Qualifications: {pipeline_job['qualifications'][:100]}..." if pipeline_job['qualifications'] else "   Qualifications: (empty)")
+        print(f"   Benefits: {pipeline_job['benefits'][:100]}..." if pipeline_job['benefits'] else "   Benefits: (empty)")
+        print(f"   Alternate Locations: {pipeline_job['alternateLocations']}")
+        
         # Send to Pipeline API
         response = requests.post(
             f"{PIPELINE_API_URL}/api/webhook/jobs",
@@ -81,13 +94,32 @@ def send_job_to_pipeline(job_data):
         )
         
         print(f"🔍 Pipeline API Response: Status {response.status_code}")
-        print(f"🔍 Pipeline API Response Body: {response.text[:200]}...")
+        print(f"🔍 Pipeline API Response Body: {response.text}")
         
         if response.status_code == 200:
             try:
                 result = response.json()
-                print(f"✅ Sent job to Pipeline: {job_data.get('title', 'Unknown Title')} at {job_data.get('company', 'Unknown')}")
-                return True
+                
+                # Check if the job was actually successful or failed
+                if 'results' in result:
+                    successful = result['results'].get('successful', [])
+                    failed = result['results'].get('failed', [])
+                    
+                    if successful:
+                        print(f"✅ Job successfully processed by Pipeline: {job_data.get('title', 'Unknown Title')} at {job_data.get('company', 'Unknown')}")
+                        return True
+                    elif failed:
+                        print(f"❌ Job FAILED Pipeline processing: {job_data.get('title', 'Unknown Title')} at {job_data.get('company', 'Unknown')}")
+                        print(f"❌ Failure details: {failed[0] if failed else 'Unknown error'}")
+                        return False
+                    else:
+                        print(f"⚠️  Unexpected Pipeline response format: {result}")
+                        return False
+                else:
+                    # Fallback for older response format
+                    print(f"✅ Sent job to Pipeline: {job_data.get('title', 'Unknown Title')} at {job_data.get('company', 'Unknown')}")
+                    return True
+                    
             except json.JSONDecodeError as e:
                 print(f"❌ Pipeline API returned invalid JSON: {e}")
                 print(f"❌ Response body: {response.text}")

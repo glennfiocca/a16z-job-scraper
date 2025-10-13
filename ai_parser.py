@@ -94,6 +94,26 @@ EXTRACTION RULES:
 7. Preserve ALL bullet points - do not skip or omit any
 8. REMOVE ALL EMOJIS from extracted text - no emojis should appear in any field (strip out 🚀 💻 👋 🎁 💸 💰 💼 💛 and all other emojis)
 
+BULLET POINT FORMATTING RULES:
+CRITICAL: For qualifications, benefits, and about_job fields, format the content as bullet points using "• " prefix for each item.
+
+QUALIFICATIONS FORMATTING:
+- Break down continuous text into individual bullet points
+- Each requirement, skill, or qualification should be a separate bullet point
+- Include both required and preferred qualifications as separate bullets
+- Example: "• 5+ years of software development experience\n• Bachelor's Degree in Computer Science\n• Proficiency in JavaScript and Python"
+
+BENEFITS FORMATTING:
+- Break down continuous text into individual bullet points
+- Each benefit, perk, or offering should be a separate bullet point
+- Example: "• Health, dental, and vision insurance\n• 401k matching\n• Flexible work arrangements\n• Professional development budget"
+
+ABOUT_JOB FORMATTING:
+- Break down continuous text into individual bullet points
+- Each responsibility, task, or duty should be a separate bullet point
+- Focus on actionable items and key responsibilities
+- Example: "• Lead and scale critical growth initiatives\n• Design and own end-to-end systems\n• Work across product, marketing, and data science teams\n• Mentor other engineers"
+
 OUTPUT FORMAT:
 Return ONLY a valid JSON object with these exact fields (no markdown, no explanation):
 {
@@ -103,9 +123,9 @@ Return ONLY a valid JSON object with these exact fields (no markdown, no explana
     "location": "primary city, state/country",
     "alternate_locations": "other locations as comma-separated string or null",
     "employment_type": "Full-time/Part-time/Contract/Internship",
-    "about_job": "verbatim role description and ALL responsibilities",
-    "qualifications": "verbatim requirements and qualifications", 
-    "benefits": "verbatim complete benefits section",
+    "about_job": "bullet-pointed role description and responsibilities with • prefix",
+    "qualifications": "bullet-pointed requirements and qualifications with • prefix", 
+    "benefits": "bullet-pointed complete benefits section with • prefix",
     "salary_range": "exact salary range with equity info if mentioned",
     "work_environment": "Remote/Hybrid/Onsite or null"
 }"""

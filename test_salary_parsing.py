@@ -48,3 +48,4 @@ def test_salary_parsing():
 if __name__ == "__main__":
     test_salary_parsing()
 
+

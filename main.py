@@ -47,7 +47,29 @@ def send_job_to_pipeline(job_data):
         # Debug: Print the API URL being used
         print(f"🔗 Using Pipeline API URL: {PIPELINE_API_URL}")
         
-        # Convert job data to Pipeline format
+        # Helper function to convert array to string (for qualifications)
+        def array_to_string(value):
+            if not value:
+                return ''
+            if isinstance(value, list):
+                return '\n'.join(str(item).strip() for item in value if str(item).strip())
+            return str(value)
+        
+        # Helper function to convert string to array (for alternate_locations)
+        def string_to_array(value):
+            if not value:
+                return []
+            if isinstance(value, list):
+                return value
+            # Split on common separators and clean up
+            separators = [';', '|', '\n', ' and ', ' or ', ' • ', ' / ']
+            for separator in separators:
+                if separator in str(value):
+                    return [item.strip() for item in str(value).split(separator) if item.strip()]
+            # If no separators found, return as single item array
+            return [str(value).strip()] if str(value).strip() else []
+        
+        # Convert job data to Pipeline format with correct data types
         pipeline_job = {
             'title': job_data.get('title', 'Unknown Title'),
             'company': job_data.get('company', 'Unknown Company'),
@@ -56,14 +78,14 @@ def send_job_to_pipeline(job_data):
             'salaryMin': job_data.get('salary_min'),
             'salaryMax': job_data.get('salary_max'),
             'location': job_data.get('location', ''),
-            'qualifications': job_data.get('qualifications', ''),
+            'qualifications': array_to_string(job_data.get('qualifications', '')),  # Convert array to string
             'benefits': job_data.get('benefits', ''),
             'source': job_data.get('source', 'A16Z Jobs'),
             'sourceUrl': job_data.get('source_url', ''),
             'employmentType': job_data.get('employment_type', 'full-time'),
             'postedDate': job_data.get('posted_date', datetime.now().isoformat()),
             'aboutCompany': job_data.get('about_company', ''),
-            'alternateLocations': job_data.get('alternate_locations', '')
+            'alternateLocations': string_to_array(job_data.get('alternate_locations', ''))  # Convert string to array
         }
         
         # Debug: Show what we're sending to Pipeline
@@ -135,6 +157,28 @@ def send_job_to_pipeline(job_data):
 def send_batch_to_pipeline(jobs_data):
     """Send multiple jobs to Pipeline API in batch"""
     try:
+        # Helper function to convert array to string (for qualifications)
+        def array_to_string(value):
+            if not value:
+                return ''
+            if isinstance(value, list):
+                return '\n'.join(str(item).strip() for item in value if str(item).strip())
+            return str(value)
+        
+        # Helper function to convert string to array (for alternate_locations)
+        def string_to_array(value):
+            if not value:
+                return []
+            if isinstance(value, list):
+                return value
+            # Split on common separators and clean up
+            separators = [';', '|', '\n', ' and ', ' or ', ' • ', ' / ']
+            for separator in separators:
+                if separator in str(value):
+                    return [item.strip() for item in str(value).split(separator) if item.strip()]
+            # If no separators found, return as single item array
+            return [str(value).strip()] if str(value).strip() else []
+        
         # Convert jobs data to Pipeline format
         pipeline_jobs = []
         for job_data in jobs_data:
@@ -146,14 +190,14 @@ def send_batch_to_pipeline(jobs_data):
                 'salaryMin': job_data.get('salary_min'),
                 'salaryMax': job_data.get('salary_max'),
                 'location': job_data.get('location', ''),
-                'qualifications': job_data.get('qualifications', ''),
+                'qualifications': array_to_string(job_data.get('qualifications', '')),  # Convert array to string
                 'benefits': job_data.get('benefits', ''),
                 'source': job_data.get('source', 'A16Z Jobs'),
                 'sourceUrl': job_data.get('source_url', ''),
                 'employmentType': job_data.get('employment_type', 'full-time'),
                 'postedDate': job_data.get('posted_date', datetime.now().isoformat()),
                 'aboutCompany': job_data.get('about_company', ''),
-                'alternateLocations': job_data.get('alternate_locations', '')
+                'alternateLocations': string_to_array(job_data.get('alternate_locations', ''))  # Convert string to array
             }
             pipeline_jobs.append(pipeline_job)
         

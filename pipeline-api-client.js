@@ -105,6 +105,35 @@ class PipelineAPIClient {
      * Convert scraper job data to Pipeline format
      */
     convertJobData(scraperJob) {
+        // Helper function to convert array to string (for qualifications)
+        const arrayToString = (value) => {
+            if (!value) return '';
+            if (Array.isArray(value)) {
+                return value.filter(item => item && item.toString().trim()).join('\n');
+            }
+            return value.toString();
+        };
+        
+        // Helper function to convert string to array (for alternate_locations)
+        const stringToArray = (value) => {
+            if (!value) return [];
+            if (Array.isArray(value)) return value;
+            
+            const str = value.toString();
+            const separators = [';', '|', '\n', ' and ', ' or ', ' • ', ' / '];
+            
+            for (const separator of separators) {
+                if (str.includes(separator)) {
+                    return str.split(separator)
+                        .map(item => item.trim())
+                        .filter(item => item);
+                }
+            }
+            
+            // If no separators found, return as single item array
+            return str.trim() ? [str.trim()] : [];
+        };
+        
         return {
             title: scraperJob.title || 'Unknown Title',
             company: scraperJob.company || 'Unknown Company',
@@ -113,7 +142,7 @@ class PipelineAPIClient {
             salaryMin: scraperJob.salary_min || null,
             salaryMax: scraperJob.salary_max || null,
             location: scraperJob.location || '',
-            qualifications: scraperJob.qualifications || scraperJob.requirements || '',
+            qualifications: arrayToString(scraperJob.qualifications || scraperJob.requirements || ''),  // Convert array to string
             benefits: scraperJob.benefits || '',
             source: scraperJob.source || 'A16Z Jobs',
             sourceUrl: scraperJob.url || scraperJob.job_url || '',
@@ -121,7 +150,7 @@ class PipelineAPIClient {
             postedDate: scraperJob.posted_date || new Date().toISOString(),
             // Map any additional fields as needed
             aboutCompany: scraperJob.about_company || '',
-            alternateLocations: scraperJob.alternate_locations || ''
+            alternateLocations: stringToArray(scraperJob.alternate_locations || '')  // Convert string to array
         };
     }
 }

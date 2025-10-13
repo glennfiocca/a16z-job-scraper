@@ -49,3 +49,4 @@ def test_qualifications_processing():
 
 if __name__ == "__main__":
     test_qualifications_processing()
+

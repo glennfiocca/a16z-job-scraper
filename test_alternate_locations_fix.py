@@ -54,3 +54,4 @@ def test_alternate_locations_processing():
 
 if __name__ == "__main__":
     test_alternate_locations_processing()
+

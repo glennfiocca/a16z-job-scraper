@@ -3128,7 +3128,7 @@ def separate_description_from_responsibilities(content):
     return description, responsibilities
 
 def format_as_bullet_points(content):
-    """Format content as bullet points, preserving existing bullets or converting text to bullets"""
+    """Format content as bullet points, handling inline bullets and preserving existing bullets"""
     if not content:
         return None
     
@@ -3142,23 +3142,182 @@ def format_as_bullet_points(content):
         line_clean = line.strip()
         if not line_clean:
             continue
-            
-        # Check if this line already has a bullet point
-        has_bullet = any(line_clean.startswith(indicator) for indicator in bullet_indicators)
         
-        if has_bullet:
-            # Clean up existing bullet and standardize to •
-            clean_line = line_clean
+        # Check if this line has inline bullets (multiple bullets on one line)
+        inline_bullets = []
+        for indicator in bullet_indicators:
+            if indicator in line_clean:
+                inline_bullets.append(indicator)
+        
+        if len(inline_bullets) > 1:
+            # Split line by inline bullets, being careful not to break words
+            current_part = line_clean
+            
+            # Find the first bullet indicator
+            first_bullet = None
+            first_bullet_pos = len(current_part)
             for indicator in bullet_indicators:
-                if clean_line.startswith(indicator):
-                    clean_line = clean_line[1:].strip()
-                    break
-            bullet_lines.append(f"• {clean_line}")
+                pos = current_part.find(indicator)
+                if pos != -1 and pos < first_bullet_pos:
+                    first_bullet = indicator
+                    first_bullet_pos = pos
+            
+            if first_bullet:
+                # Remove everything before the first bullet
+                current_part = current_part[first_bullet_pos:]
+                
+                # Split by bullet indicators, but preserve word boundaries
+                parts = []
+                temp_part = current_part
+                
+                # Replace all bullet indicators with a unique separator
+                for indicator in bullet_indicators:
+                    temp_part = temp_part.replace(indicator, '|||BULLET|||')
+                
+                # Split and clean up
+                raw_parts = temp_part.split('|||BULLET|||')
+                for part in raw_parts:
+                    part_clean = part.strip()
+                    if part_clean:
+                        # Make sure we don't break words - if part ends with incomplete word, merge with next
+                        if part_clean and not part_clean.endswith(' ') and len(part_clean) > 0:
+                            parts.append(part_clean)
+                        else:
+                            parts.append(part_clean)
+                
+                # Add each part as a separate bullet
+                for part in parts:
+                    if part.strip():
+                        bullet_lines.append(f"• {part.strip()}")
+            else:
+                # No bullets found, treat as single bullet
+                bullet_lines.append(f"• {line_clean}")
         else:
-            # Convert regular text to bullet point
-            bullet_lines.append(f"• {line_clean}")
+            # Check if this line already has a single bullet point
+            has_bullet = any(line_clean.startswith(indicator) for indicator in bullet_indicators)
+            
+            if has_bullet:
+                # Clean up existing bullet and standardize to •
+                clean_line = line_clean
+                for indicator in bullet_indicators:
+                    if clean_line.startswith(indicator):
+                        clean_line = clean_line[1:].strip()
+                        break
+                bullet_lines.append(f"• {clean_line}")
+            else:
+                # Convert regular text to bullet point
+                bullet_lines.append(f"• {line_clean}")
     
     return '\n'.join(bullet_lines) if bullet_lines else None
+
+def fix_qualifications_formatting(content):
+    """Fix double-bullet issues in qualifications (like 'Preferred Qualifications:' being bulleted)"""
+    if not content:
+        return None
+    
+    lines = content.split('\n')
+    fixed_lines = []
+    
+    for line in lines:
+        line_clean = line.strip()
+        if not line_clean:
+            continue
+        
+        # Check if this is a heading that shouldn't be bulleted
+        heading_indicators = [
+            'preferred qualifications:', 'required qualifications:', 'minimum qualifications:',
+            'nice to have:', 'bonus points:', 'additional qualifications:',
+            'education:', 'experience:', 'skills:', 'requirements:'
+        ]
+        
+        line_lower = line_clean.lower()
+        is_heading = any(indicator in line_lower for indicator in heading_indicators)
+        
+        if is_heading:
+            # Remove bullet and make it a proper heading
+            bullet_indicators = ['•', '*', '-', '◦', '▪', '▫', '○', '●', '◆', '◇']
+            for indicator in bullet_indicators:
+                if line_clean.startswith(indicator):
+                    line_clean = line_clean[1:].strip()
+                    break
+            
+            # Add as a heading (not bulleted)
+            fixed_lines.append(f"{line_clean}:")
+        else:
+            # Keep as bullet point
+            bullet_indicators = ['•', '*', '-', '◦', '▪', '▫', '○', '●', '◆', '◇']
+            has_bullet = any(line_clean.startswith(indicator) for indicator in bullet_indicators)
+            
+            if has_bullet:
+                # Standardize to •
+                for indicator in bullet_indicators:
+                    if line_clean.startswith(indicator):
+                        line_clean = line_clean[1:].strip()
+                        break
+                fixed_lines.append(f"• {line_clean}")
+            else:
+                # Add bullet if missing
+                fixed_lines.append(f"• {line_clean}")
+    
+    return '\n'.join(fixed_lines) if fixed_lines else None
+
+def extract_responsibilities_from_text(content):
+    """Extract responsibilities from text even when not explicitly bulleted"""
+    if not content:
+        return None
+    
+    # Look for responsibility indicators in the text
+    responsibility_indicators = [
+        'you will', 'you\'ll', 'responsibilities include', 'key responsibilities',
+        'in this role', 'as a', 'the ideal candidate will', 'you\'ll be responsible for',
+        'you will be responsible for', 'duties include', 'tasks include'
+    ]
+    
+    lines = content.split('\n')
+    responsibilities = []
+    
+    for line in lines:
+        line_clean = line.strip()
+        if not line_clean:
+            continue
+        
+        line_lower = line_clean.lower()
+        
+        # Check if this line contains responsibility indicators
+        has_responsibility_indicator = any(indicator in line_lower for indicator in responsibility_indicators)
+        
+        if has_responsibility_indicator:
+            # This looks like a responsibility, but might be a long sentence with multiple responsibilities
+            # Try to split by common separators like periods followed by "You'll"
+            if 'you\'ll' in line_lower or 'you will' in line_lower:
+                # Split by "You'll" or "You will" to separate multiple responsibilities
+                parts = []
+                current_text = line_clean
+                
+                # Split by "You'll" (case insensitive)
+                import re
+                split_pattern = r'(?i)(you\'ll|you will)'
+                parts = re.split(split_pattern, current_text)
+                
+                if len(parts) > 1:
+                    # Reconstruct responsibilities
+                    for i in range(1, len(parts), 2):  # Skip the first part (before first "You'll")
+                        if i + 1 < len(parts):
+                            responsibility_text = parts[i] + parts[i + 1]
+                            responsibility_text = responsibility_text.strip()
+                            if responsibility_text:
+                                responsibilities.append(f"• {responsibility_text}")
+                else:
+                    # No splitting needed, add as single responsibility
+                    responsibilities.append(f"• {line_clean}")
+            else:
+                # Single responsibility
+                responsibilities.append(f"• {line_clean}")
+        elif len(line_clean) > 50 and any(word in line_lower for word in ['lead', 'design', 'build', 'develop', 'create', 'manage', 'work', 'collaborate', 'ensure', 'drive', 'implement']):
+            # Long lines with action words might be responsibilities
+            responsibilities.append(f"• {line_clean}")
+    
+    return '\n'.join(responsibilities) if responsibilities else None
 
 async def parse_job_sections(content):
     """Parse job content to extract structured sections"""
@@ -3229,6 +3388,20 @@ async def parse_job_sections(content):
             formatted_benefits = format_as_bullet_points(benefits_content)
             if formatted_benefits:
                 sections['benefits'] = formatted_benefits
+        
+        # Post-process qualifications section to fix double-bullet issues
+        if 'qualifications' in sections:
+            qualifications_content = sections['qualifications']
+            formatted_qualifications = fix_qualifications_formatting(qualifications_content)
+            if formatted_qualifications:
+                sections['qualifications'] = formatted_qualifications
+        
+        # Post-process about_job section to extract responsibilities even without explicit bullets
+        if 'about_job' in sections and 'responsibilities' not in sections:
+            about_job_content = sections['about_job']
+            responsibilities = extract_responsibilities_from_text(about_job_content)
+            if responsibilities:
+                sections['responsibilities'] = responsibilities
         
         # Extract salary information
         salary_patterns = [

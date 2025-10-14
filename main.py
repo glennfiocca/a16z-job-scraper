@@ -3064,6 +3064,51 @@ async def get_text_by_selectors(page, selectors):
             continue
     return None
 
+def separate_description_from_responsibilities(content):
+    """Separate description paragraphs from bullet point responsibilities"""
+    if not content:
+        return None, None
+    
+    lines = content.split('\n')
+    description_lines = []
+    responsibility_lines = []
+    
+    # Look for bullet point indicators
+    bullet_indicators = ['•', '*', '-', '◦', '▪', '▫']
+    
+    # Track if we've found the first bullet point
+    found_bullets = False
+    
+    for line in lines:
+        line_clean = line.strip()
+        if not line_clean:
+            continue
+            
+        # Check if this line starts with a bullet point
+        is_bullet = any(line_clean.startswith(indicator) for indicator in bullet_indicators)
+        
+        if is_bullet:
+            found_bullets = True
+            # Clean up the bullet point and add to responsibilities
+            clean_line = line_clean
+            for indicator in bullet_indicators:
+                if clean_line.startswith(indicator):
+                    clean_line = clean_line[1:].strip()
+                    break
+            responsibility_lines.append(f"• {clean_line}")
+        elif not found_bullets:
+            # Before we find bullets, these are description lines
+            description_lines.append(line_clean)
+        else:
+            # After finding bullets, treat as responsibilities (in case of non-bullet format)
+            responsibility_lines.append(f"• {line_clean}")
+    
+    # Join the results
+    description = '\n\n'.join(description_lines) if description_lines else None
+    responsibilities = '\n'.join(responsibility_lines) if responsibility_lines else None
+    
+    return description, responsibilities
+
 async def parse_job_sections(content):
     """Parse job content to extract structured sections"""
     sections = {}
@@ -3078,8 +3123,9 @@ async def parse_job_sections(content):
         # Common section headers to look for
         section_headers = {
             'about_company': ['about us', 'about the company', 'about', 'who we are', 'our company', 'our mission', 'company overview', 'our story'],
+            'about_job': ['about the job', 'about the role', 'the role', 'position overview', 'role overview', 'job overview'],
             'qualifications': ['requirements', 'qualifications', 'what you need', 'you have', 'required skills', 'minimum qualifications'],
-            'responsibilities': ['responsibilities', 'what you\'ll do', 'you will', 'duties', 'role description', 'job description'],
+            'responsibilities': ['responsibilities', 'what you\'ll do', 'you will', 'duties', 'key responsibilities', 'day-to-day'],
             'benefits': ['benefits', 'what we offer', 'perks', 'compensation', 'package'],
             'work_environment': ['remote', 'hybrid', 'onsite', 'location', 'work from']
         }
@@ -3110,6 +3156,21 @@ async def parse_job_sections(content):
         # Save the last section
         if current_section and section_content:
             sections[current_section] = '\n'.join(section_content)[:2000]
+        
+        # Post-process about_job section to separate description from responsibilities
+        if 'about_job' in sections:
+            about_job_content = sections['about_job']
+            description, responsibilities = separate_description_from_responsibilities(about_job_content)
+            
+            if description:
+                sections['about_job'] = description
+                
+            if responsibilities:
+                # If we found responsibilities, add them to the responsibilities section
+                if 'responsibilities' in sections:
+                    sections['responsibilities'] = responsibilities + '\n' + sections['responsibilities']
+                else:
+                    sections['responsibilities'] = responsibilities
         
         # Extract salary information
         salary_patterns = [

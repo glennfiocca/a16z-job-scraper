@@ -44,6 +44,7 @@ class AIParser:
             print("⚠️  AI parsing not available (no API key). Returning empty result.")
             return {
                 "about_company": None,
+                "about_job": None,
                 "responsibilities": None,
                 "qualifications": None,
                 "benefits": None,
@@ -63,10 +64,16 @@ ABOUT COMPANY (about_company field):
 - Ashby: "🚀 Join...", "About [Company]", company description paragraphs at the top
 - General: Any introductory paragraphs describing the company's mission, products, culture, or history
 
-ROLE/RESPONSIBILITIES (about_job field):
+ROLE DESCRIPTION (about_job field):
+- This should be a PARAGRAPH describing what the role is about, the team, and the overall purpose
+- Should NOT include bullet points - those go in responsibilities
+- Examples: "This position is on the TRS Core Infrastructure team and will be focused on building the infrastructure to field TRS Products such as Altius, Ghost, Bolt and Anvil. Our charter is to provide the foundation for teams across Anduril to deploy cutting edge TRS autonomy and to tie it all together into an easy-to-use product."
+
+RESPONSIBILITIES (responsibilities field):
 - Greenhouse/Lever: "About the Role", "The Role", "What You'll Do", "Responsibilities", "Key Responsibilities", "Day-to-Day"
 - Ashby: "💻 Role", "💻 The Role", "What You'll Do"
-- General: Bullet points or paragraphs describing daily tasks, duties, and what the person will do in this position
+- General: Bullet points describing daily tasks, duties, and what the person will do in this position
+- These should be formatted as bullet points with "• " prefix
 
 QUALIFICATIONS (qualifications field):
 - Greenhouse/Lever: "About You", "Requirements", "Qualifications", "What We're Looking For", "You Have"
@@ -87,15 +94,36 @@ SALARY (salary_range field):
 EXTRACTION RULES:
 1. Copy text VERBATIM - do not summarize, paraphrase, or reword
 2. Each field should capture its COMPLETE section, including all bullet points and paragraphs
-3. about_job = What the job IS + What the person WILL DO (tasks, responsibilities, duties)
-4. qualifications = What the candidate MUST HAVE (skills, experience, requirements)
-5. Salary can appear in BOTH salary_range AND benefits - this is ALLOWED and EXPECTED
-6. If a section has multiple paragraphs, include ALL of them
-7. Preserve ALL bullet points - do not skip or omit any
-8. REMOVE ALL EMOJIS from extracted text - no emojis should appear in any field (strip out 🚀 💻 👋 🎁 💸 💰 💼 💛 and all other emojis)
+3. about_job = PARAGRAPH describing what the role is about, the team, and overall purpose (NO bullet points)
+4. responsibilities = BULLET POINTS describing specific tasks, duties, and what the person will do day-to-day
+5. qualifications = What the candidate MUST HAVE (skills, experience, requirements)
+6. Salary can appear in BOTH salary_range AND benefits - this is ALLOWED and EXPECTED
+7. If a section has multiple paragraphs, include ALL of them
+8. Preserve ALL bullet points - do not skip or omit any
+9. REMOVE ALL EMOJIS from extracted text - no emojis should appear in any field (strip out 🚀 💻 👋 🎁 💸 💰 💼 💛 and all other emojis)
+
+CRITICAL SEPARATION RULE:
+- If you find a section that contains BOTH descriptive paragraphs AND bullet points, SEPARATE them:
+  * Put the descriptive paragraph(s) in about_job field
+  * Put the bullet points in responsibilities field
+- Do NOT mix paragraphs and bullet points in the same field
 
 BULLET POINT FORMATTING RULES:
-CRITICAL: For qualifications, benefits, and about_job fields, format the content as bullet points using "• " prefix for each item, with each bullet point on a SEPARATE LINE. Each bullet point must end with a newline character.
+CRITICAL: For qualifications, benefits, and responsibilities fields, format the content as bullet points using "• " prefix for each item, with each bullet point on a SEPARATE LINE. Each bullet point must end with a newline character.
+
+ABOUT_JOB FORMATTING:
+- about_job should be a PARAGRAPH (not bullet points)
+- If there are multiple descriptive paragraphs, join them with double newlines
+- Do NOT use bullet points in about_job field
+- Example: "This position is on the TRS Core Infrastructure team and will be focused on building the infrastructure to field TRS Products such as Altius, Ghost, Bolt and Anvil. Our charter is to provide the foundation for teams across Anduril to deploy cutting edge TRS autonomy and to tie it all together into an easy-to-use product. The solutions that you will create address the current needs of our customers and will have immediate impact towards the success of our products."
+
+RESPONSIBILITIES FORMATTING:
+- responsibilities should be BULLET POINTS (not paragraphs)
+- Each responsibility should be a separate bullet point with "• " prefix
+- Example:
+• Design, build, test, and release the testing infrastructure used during development & validation of Anduril Products including Software in the Loop (SITL) and Hardware in the Loop (HITL)
+• Collaborate with cross-functional teams to integrate automated testing best practices into the software development lifecycle
+• Build tools in Python to facilitate development, testing, and release
 
 QUALIFICATIONS FORMATTING:
 - Break down continuous text into individual bullet points
@@ -265,6 +293,7 @@ Extract and return the JSON object now:"""
                 print("⚠️  AI parsing not available (no API key). Using manual parsing fallback.")
                 return {
                     "about_company": None,
+                    "about_job": None,
                     "responsibilities": None,
                     "qualifications": None,
                     "benefits": None,

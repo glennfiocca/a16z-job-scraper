@@ -3073,8 +3073,8 @@ def separate_description_from_responsibilities(content):
     description_lines = []
     responsibility_lines = []
     
-    # Look for bullet point indicators
-    bullet_indicators = ['•', '*', '-', '◦', '▪', '▫']
+    # Look for bullet point indicators (more comprehensive)
+    bullet_indicators = ['•', '*', '-', '◦', '▪', '▫', '○', '●', '◆', '◇']
     
     # Track if we've found the first bullet point
     found_bullets = False
@@ -3084,8 +3084,16 @@ def separate_description_from_responsibilities(content):
         if not line_clean:
             continue
             
-        # Check if this line starts with a bullet point
-        is_bullet = any(line_clean.startswith(indicator) for indicator in bullet_indicators)
+        # Check if this line starts with a bullet point (more flexible matching)
+        is_bullet = False
+        for indicator in bullet_indicators:
+            if line_clean.startswith(indicator):
+                is_bullet = True
+                break
+        
+        # Also check for numbered lists that might be responsibilities
+        if not is_bullet and line_clean and line_clean[0].isdigit() and '.' in line_clean[:5]:
+            is_bullet = True
         
         if is_bullet:
             found_bullets = True
@@ -3095,19 +3103,62 @@ def separate_description_from_responsibilities(content):
                 if clean_line.startswith(indicator):
                     clean_line = clean_line[1:].strip()
                     break
-            responsibility_lines.append(f"• {clean_line}")
+            
+            # Handle numbered lists
+            if clean_line and clean_line[0].isdigit() and '.' in clean_line[:5]:
+                # Remove number and period
+                parts = clean_line.split('.', 1)
+                if len(parts) > 1:
+                    clean_line = parts[1].strip()
+            
+            if clean_line:  # Only add if there's content after cleaning
+                responsibility_lines.append(f"• {clean_line}")
         elif not found_bullets:
             # Before we find bullets, these are description lines
             description_lines.append(line_clean)
         else:
             # After finding bullets, treat as responsibilities (in case of non-bullet format)
-            responsibility_lines.append(f"• {line_clean}")
+            if line_clean:  # Only add non-empty lines
+                responsibility_lines.append(f"• {line_clean}")
     
     # Join the results
     description = '\n\n'.join(description_lines) if description_lines else None
     responsibilities = '\n'.join(responsibility_lines) if responsibility_lines else None
     
     return description, responsibilities
+
+def format_as_bullet_points(content):
+    """Format content as bullet points, preserving existing bullets or converting text to bullets"""
+    if not content:
+        return None
+    
+    lines = content.split('\n')
+    bullet_lines = []
+    
+    # Look for bullet point indicators
+    bullet_indicators = ['•', '*', '-', '◦', '▪', '▫', '○', '●', '◆', '◇']
+    
+    for line in lines:
+        line_clean = line.strip()
+        if not line_clean:
+            continue
+            
+        # Check if this line already has a bullet point
+        has_bullet = any(line_clean.startswith(indicator) for indicator in bullet_indicators)
+        
+        if has_bullet:
+            # Clean up existing bullet and standardize to •
+            clean_line = line_clean
+            for indicator in bullet_indicators:
+                if clean_line.startswith(indicator):
+                    clean_line = clean_line[1:].strip()
+                    break
+            bullet_lines.append(f"• {clean_line}")
+        else:
+            # Convert regular text to bullet point
+            bullet_lines.append(f"• {line_clean}")
+    
+    return '\n'.join(bullet_lines) if bullet_lines else None
 
 async def parse_job_sections(content):
     """Parse job content to extract structured sections"""
@@ -3171,6 +3222,13 @@ async def parse_job_sections(content):
                     sections['responsibilities'] = responsibilities + '\n' + sections['responsibilities']
                 else:
                     sections['responsibilities'] = responsibilities
+        
+        # Post-process benefits section to ensure proper bullet formatting
+        if 'benefits' in sections:
+            benefits_content = sections['benefits']
+            formatted_benefits = format_as_bullet_points(benefits_content)
+            if formatted_benefits:
+                sections['benefits'] = formatted_benefits
         
         # Extract salary information
         salary_patterns = [

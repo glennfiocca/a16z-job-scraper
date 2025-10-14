@@ -108,53 +108,52 @@ CRITICAL SEPARATION RULE:
   * Put the bullet points in responsibilities field
 - Do NOT mix paragraphs and bullet points in the same field
 
-BULLET POINT FORMATTING RULES:
-CRITICAL: For qualifications, benefits, and responsibilities fields, format the content as bullet points using "• " prefix for each item, with each bullet point on a SEPARATE LINE. Each bullet point must end with a newline character.
+CRITICAL BULLET POINT PRESERVATION RULES:
+1. ALWAYS preserve existing bullet points from the source text
+2. If source text has bullet points (•, *, -, etc.), convert them to "• " format
+3. Each bullet point must be on a SEPARATE LINE with actual line breaks
+4. Do NOT convert bullet points to paragraphs or run-on text
 
 ABOUT_JOB FORMATTING:
-- about_job should be a PARAGRAPH (not bullet points)
+- about_job should be a PARAGRAPH describing the role, team, and overall purpose
 - If there are multiple descriptive paragraphs, join them with double newlines
-- Do NOT use bullet points in about_job field
-- Example: "This position is on the TRS Core Infrastructure team and will be focused on building the infrastructure to field TRS Products such as Altius, Ghost, Bolt and Anvil. Our charter is to provide the foundation for teams across Anduril to deploy cutting edge TRS autonomy and to tie it all together into an easy-to-use product. The solutions that you will create address the current needs of our customers and will have immediate impact towards the success of our products."
+- Do NOT include bullet points in about_job field - those go in responsibilities
+- Example: "This position is on the Buyer Growth team and will be focused on driving top-of-funnel growth, first-time buyer success, acquisition, activation, and early retention. You'll partner with product, data, design, and marketing to build user experiences that drive growth."
 
 RESPONSIBILITIES FORMATTING:
 - responsibilities should be BULLET POINTS (not paragraphs)
+- PRESERVE all bullet points from the source text
 - Each responsibility should be a separate bullet point with "• " prefix
+- Each bullet point must be on its own line
 - Example:
-• Design, build, test, and release the testing infrastructure used during development & validation of Anduril Products including Software in the Loop (SITL) and Hardware in the Loop (HITL)
-• Collaborate with cross-functional teams to integrate automated testing best practices into the software development lifecycle
-• Build tools in Python to facilitate development, testing, and release
+• Lead and scale critical growth initiatives such as onboarding flows, referral systems, guest browsing, notification systems
+• Design and own end-to-end systems, from backend services to frontend experiences, that impact millions of users
+• Work across product, marketing, and data science to identify high-leverage growth opportunities and rapidly iterate on experiments
+• Instrument, monitor, and improve funnels to drive measurable lifts in new user conversion and retention
+• Mentor other engineers and contribute to raising the bar for engineering excellence across the team
 
 QUALIFICATIONS FORMATTING:
-- Break down continuous text into individual bullet points
+- PRESERVE all bullet points from the source text
 - Each requirement, skill, or qualification should be a separate bullet point on its own line
 - Include both required and preferred qualifications as separate bullets
-- MANDATORY: Each bullet point must be on a separate line (use actual line breaks, not \n)
+- Each bullet point must be on a separate line with "• " prefix
 - Example format:
-• 5+ years of software development experience
-• Bachelor's Degree in Computer Science
-• Proficiency in JavaScript and Python
+• 5+ years of full-time, generalist software engineering experience in high growth tech companies
+• Bachelor's Degree in Computer Science or related field or equivalent work experience
+• A strong foundation in backend and frontend development
+• Excellent product instincts and ability to take ownership of ambiguous areas
 
 BENEFITS FORMATTING:
-- Break down continuous text into individual bullet points
+- PRESERVE all bullet points from the source text
 - Each benefit, perk, or offering should be a separate bullet point on its own line
-- MANDATORY: Each bullet point must be on a separate line (use actual line breaks, not \n)
+- Each bullet point must be on a separate line with "• " prefix
 - Example format:
-• Health, dental, and vision insurance
-• 401k matching
-• Flexible work arrangements
-• Professional development budget
-
-ABOUT_JOB FORMATTING:
-- Break down continuous text into individual bullet points
-- Each responsibility, task, or duty should be a separate bullet point on its own line
-- Focus on actionable items and key responsibilities
-- MANDATORY: Each bullet point must be on a separate line (use actual line breaks, not \n)
-- Example format:
-• Lead and scale critical growth initiatives
-• Design and own end-to-end systems
-• Work across product, marketing, and data science teams
-• Mentor other engineers
+• Flexible Time off Policy and Company-wide Holidays
+• Health Insurance options including Medical, Dental, Vision
+• Work From Home Support with home office setup allowance
+• Care benefits including monthly wellness allowance and annual childcare allowance
+• 401k offering for Traditional and Roth accounts in the US with employer match up to 4%
+• 16 weeks of paid parental leave plus one month gradual return to work
 
 OUTPUT FORMAT:
 Return ONLY a valid JSON object with these exact fields (no markdown, no explanation):
@@ -165,9 +164,10 @@ Return ONLY a valid JSON object with these exact fields (no markdown, no explana
     "location": "primary city, state/country",
     "alternate_locations": "other locations as comma-separated string or null",
     "employment_type": "Full-time/Part-time/Contract/Internship",
-    "about_job": "bullet-pointed role description and responsibilities with • prefix",
-    "qualifications": "bullet-pointed requirements and qualifications with • prefix", 
-    "benefits": "bullet-pointed complete benefits section with • prefix",
+    "about_job": "paragraph description of the role, team, and overall purpose (NO bullet points)",
+    "responsibilities": "bullet-pointed responsibilities and tasks with • prefix, each on separate line",
+    "qualifications": "bullet-pointed requirements and qualifications with • prefix, each on separate line", 
+    "benefits": "bullet-pointed complete benefits section with • prefix, each on separate line",
     "salary_range": "exact salary range with equity info if mentioned",
     "work_environment": "Remote/Hybrid/Onsite or null"
 }"""

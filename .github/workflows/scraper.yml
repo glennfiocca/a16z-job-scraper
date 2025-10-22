@@ -50,6 +50,10 @@ jobs:
       run: |
         python main.py ${{ github.event.inputs.batch_size || '20' }} ${{ github.event.inputs.resume || 'true' }}
         
+    - name: Clean up duplicates
+      run: |
+        python github_actions_cleanup.py
+        
     - name: Upload progress file
       uses: actions/upload-artifact@v4
       if: always()

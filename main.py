@@ -7,6 +7,7 @@ from playwright.async_api import async_playwright
 from flask import Flask
 from models import db, Job
 from datetime import datetime
+from sqlalchemy import func
 
 # Global reference to scraping status (set by app.py)
 scraping_status = None
@@ -1116,9 +1117,9 @@ async def extract_job_details_advanced(page, job_url, company_name):
     }
     
     try:
-        # For known ATS providers, immediately override with URL-derived company
-        if any(p in job_url.lower() for p in ["greenhouse", "lever", "ashby", "smartrecruiters", "workable"]):
-            job_data['company'] = extract_company_from_url(job_url)
+        # Keep the original company name from the scraping context
+        # Don't override with URL-derived company to prevent duplicates
+        # The company_name parameter is already the correct company from the scraping context
         
         # Check if this is a Workday job - skip if so
         if 'workday' in job_url.lower():
@@ -3530,6 +3531,48 @@ def extract_company_from_url(url):
         pass
     return "Unknown Company"
 
+def normalize_url(url):
+    """Normalize URL for consistent deduplication"""
+    if not url:
+        return url
+    
+    try:
+        from urllib.parse import urlparse, urlunparse, parse_qs
+        from urllib.parse import urlencode
+        
+        # Parse the URL
+        parsed = urlparse(url)
+        
+        # Remove common tracking parameters
+        query_params = parse_qs(parsed.query)
+        filtered_params = {}
+        for key, value in query_params.items():
+            if key.lower() not in ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'ref', 'source', 'campaign']:
+                filtered_params[key] = value
+        
+        # Rebuild query string
+        if filtered_params:
+            new_query = urlencode(filtered_params, doseq=True)
+        else:
+            new_query = ''
+        
+        # Remove trailing slash from path
+        path = parsed.path.rstrip('/')
+        
+        # Rebuild URL
+        normalized = urlunparse((
+            parsed.scheme,
+            parsed.netloc.lower(),
+            path,
+            parsed.params,
+            new_query,
+            ''  # Remove fragment
+        ))
+        
+        return normalized
+    except Exception:
+        return url
+
 def extract_source_from_url(url):
     """Extract source platform from URL"""
     try:
@@ -3640,8 +3683,33 @@ def save_job_to_db(job_data):
             print(f"🏢 Skipping Andreessen Horowitz job (VC firm itself): {job_data.get('title', 'Unknown Title')}")
             return
         
-        # Check if job already exists by URL
-        existing_job = Job.query.filter_by(source_url=job_data.get('source_url')).first()
+        # Normalize URL for consistent deduplication
+        normalized_url = normalize_url(job_data.get('source_url', ''))
+        job_data['source_url'] = normalized_url
+        
+        # Check for existing job using multiple criteria for better deduplication
+        title = job_data.get('title', '').strip().lower()
+        company = job_data.get('company', '').strip().lower()
+        location = job_data.get('location', '').strip().lower()
+        
+        # First try exact URL match
+        existing_job = Job.query.filter_by(source_url=normalized_url).first()
+        
+        # If no exact URL match, try compound matching (title + company + location)
+        if not existing_job and title and company:
+            existing_job = Job.query.filter(
+                func.lower(Job.title) == title,
+                func.lower(Job.company) == company
+            ).first()
+            
+            # If still no match and we have location, try with location
+            if not existing_job and location:
+                existing_job = Job.query.filter(
+                    func.lower(Job.title) == title,
+                    func.lower(Job.company) == company,
+                    func.lower(Job.location) == location
+                ).first()
+        
         if existing_job:
             # Smart update: only update if the job is incomplete or very old
             should_update = False

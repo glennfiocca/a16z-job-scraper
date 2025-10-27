@@ -1,6 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy import Column, Integer, String, Text, DateTime, Index
 from datetime import datetime
 import os
 
@@ -26,7 +26,7 @@ class Job(db.Model):
     salary_min = db.Column(db.Integer, nullable=True)
     salary_max = db.Column(db.Integer, nullable=True)
     work_environment = db.Column(db.Text, nullable=True)
-    source_url = db.Column(db.String(500), nullable=True)
+    source_url = db.Column(db.String(500), nullable=True, unique=True)
     posted_date = db.Column(db.String(100), nullable=True)
     source = db.Column(db.Text, nullable=True)
     scraped_at = db.Column(db.DateTime, default=datetime.utcnow)

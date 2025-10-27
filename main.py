@@ -3627,10 +3627,8 @@ def should_scrape_company(company_name):
         if not company_jobs:
             return True, "no existing jobs"
         
-        # Check if any jobs are incomplete or stale
-        now = datetime.utcnow()
+        # Check if any jobs are incomplete
         incomplete_count = 0
-        stale_count = 0
         
         for job in company_jobs:
             # Check for incomplete data
@@ -3638,18 +3636,13 @@ def should_scrape_company(company_name):
                 incomplete_count += 1
             elif not job.location or not job.employment_type:
                 incomplete_count += 1
-            # Check for stale data (more than 7 days old)
-            elif job.scraped_at and (now - job.scraped_at).days > 7:
-                stale_count += 1
         
-        # If we have any incomplete or stale jobs, scrape this company
+        # If we have any incomplete jobs, scrape this company
         if incomplete_count > 0:
             return True, f"{incomplete_count} incomplete job(s)"
-        if stale_count > 0:
-            return True, f"{stale_count} stale job(s) (7+ days old)"
         
-        # All jobs are complete and recent
-        return False, f"all {len(company_jobs)} job(s) are complete and recent"
+        # All jobs are complete - skip this company to prevent duplicates
+        return False, f"all {len(company_jobs)} job(s) are complete"
         
     except Exception as e:
         print(f"Error checking company status: {e}")
@@ -3687,28 +3680,9 @@ def save_job_to_db(job_data):
         normalized_url = normalize_url(job_data.get('source_url', ''))
         job_data['source_url'] = normalized_url
         
-        # Check for existing job using multiple criteria for better deduplication
-        title = job_data.get('title', '').strip().lower()
-        company = job_data.get('company', '').strip().lower()
-        location = job_data.get('location', '').strip().lower()
-        
-        # First try exact URL match
+        # CRITICAL: Only use URL-based deduplication for scalability and reliability
+        # URL is the true unique identifier - same job URL = same job
         existing_job = Job.query.filter_by(source_url=normalized_url).first()
-        
-        # If no exact URL match, try compound matching (title + company + location)
-        if not existing_job and title and company:
-            existing_job = Job.query.filter(
-                func.lower(Job.title) == title,
-                func.lower(Job.company) == company
-            ).first()
-            
-            # If still no match and we have location, try with location
-            if not existing_job and location:
-                existing_job = Job.query.filter(
-                    func.lower(Job.title) == title,
-                    func.lower(Job.company) == company,
-                    func.lower(Job.location) == location
-                ).first()
         
         if existing_job:
             # Smart update: only update if the job is incomplete or very old
@@ -3725,17 +3699,9 @@ def save_job_to_db(job_data):
             elif not existing_job.employment_type:
                 should_update = True
                 update_reason = "missing employment type"
-            # Check if job has location but no alternate_locations (needs location parsing)
-            elif existing_job.location and not existing_job.alternate_locations:
-                # Check if the location text contains multiple locations that could be parsed
-                primary, alternate = parse_locations(existing_job.location)
-                if alternate:  # If parsing would create alternate locations
-                    should_update = True
-                    update_reason = "location needs parsing for alternate locations"
-            # Check if job is very old (scraped more than 7 days ago)
-            elif existing_job.scraped_at and (datetime.utcnow() - existing_job.scraped_at).days > 7:
-                should_update = True
-                update_reason = "stale data (7+ days old)"
+            
+            # NOTE: Removed stale re-scraping (>7 days) to prevent duplicate creation
+            # Only update jobs that are truly incomplete, not just old
             
             if should_update:
                 print(f"Updating existing job ({update_reason}): {job_data.get('title', 'Unknown Title')}")
